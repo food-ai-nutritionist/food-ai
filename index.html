@@ -1,166 +1,283 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 營養師 - 個人設定</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        body { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
-        .container { max-width: 600px; padding-top: 20px; }
-        .card { border: none; border-radius: 20px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); overflow: hidden; }
-        .card-header { background-color: #06c755; color: white; border: none; padding: 20px; text-align: center; }
-        .btn-primary { background-color: #06c755; border: none; border-radius: 12px; padding: 12px; font-size: 1.1rem; font-weight: bold; }
-        .btn-primary:hover { background-color: #05b34c; }
-        .form-label { font-weight: 600; color: #333; }
-        .form-control, .form-select { border-radius: 10px; padding: 10px; border: 1px solid #e1e4e8; }
-        .loading { display: none; text-align: center; margin-top: 10px; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 營養師 - 健康儀表板</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; padding-bottom: 40px; }
+    .container { max-width: 600px; padding: 20px; }
+    
+    /* 儀表板卡片 */
+    .dashboard-card {
+      background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .section-title { font-size: 1.2rem; font-weight: 700; color: #333; margin-bottom: 15px; border-left: 5px solid #28a745; padding-left: 10px; }
+    
+    /* 進度條樣式 */
+    .progress-label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 5px; color: #555; }
+    .progress { height: 12px; border-radius: 6px; background-color: #e9ecef; margin-bottom: 15px; }
+    .progress-bar { border-radius: 6px; transition: width 1s ease-in-out; }
+    .bg-cal { background-color: #ffc107; } /* 熱量 黃色 */
+    .bg-pro { background-color: #28a745; } /* 蛋白質 綠色 */
+    .bg-carb { background-color: #17a2b8; } /* 碳水 藍色 */
+    .bg-fat { background-color: #dc3545; } /* 脂肪 紅色 */
+
+    /* 表單樣式 */
+    .form-label { font-weight: 600; color: #444; margin-top: 10px; }
+    .form-control, .form-select { border-radius: 10px; border: 1px solid #ced4da; padding: 12px; }
+    .btn-save { background: linear-gradient(135deg, #28a745 0%, #218838 100%); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; width: 100%; margin-top: 20px; font-size: 1.1rem; box-shadow: 0 4px 6px rgba(40,167,69,0.2); }
+    .btn-save:active { transform: scale(0.98); }
+
+    /* Loading 動畫 */
+    #loading { display: none; text-align: center; padding: 50px 0; }
+    .spinner-border { width: 3rem; height: 3rem; color: #28a745; }
+    #dashboardArea, #formArea { display: none; } /* 預設隱藏，載入後顯示 */
+  </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="card mb-4">
-        <div class="card-header">
-            <h3 class="m-0">⚙️ 設定身體數值</h3>
-            <small>讓我們為您量身打造 TDEE</small>
-        </div>
-        <div class="card-body p-4">
-            <form id="profileForm">
-                <input type="hidden" id="userId" name="userId">
-                <input type="hidden" id="nickname" name="nickname">
+  <div id="loading">
+    <div class="spinner-border" role="status"></div>
+    <p class="mt-3 text-muted">正在讀取您的健康數據...</p>
+  </div>
 
-                <div class="row g-3">
-                    <div class="col-6">
-                        <label class="form-label">性別</label>
-                        <select class="form-select" id="gender" required>
-                            <option value="male">男生 🙋‍♂️</option>
-                            <option value="female">女生 🙋‍♀️</option>
-                        </select>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">年齡</label>
-                        <input type="number" class="form-control" id="age" placeholder="25" required>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">身高 (cm)</label>
-                        <input type="number" class="form-control" id="height" placeholder="175" required>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">體重 (kg)</label>
-                        <input type="number" class="form-control" id="weight" placeholder="70" required>
-                    </div>
-                </div>
-
-                <div class="mt-3">
-                    <label class="form-label">日常活動量</label>
-                    <select class="form-select" id="activity" required>
-                        <option value="1.2">🛌 久坐 (幾乎不運動)</option>
-                        <option value="1.375">🚶 輕度 (每週運動 1-3 天)</option>
-                        <option value="1.55">🏃 中度 (每週運動 3-5 天)</option>
-                        <option value="1.725">🏋️ 高度 (每週運動 6-7 天)</option>
-                    </select>
-                </div>
-
-                <div class="mt-3 mb-4">
-                    <label class="form-label">目標</label>
-                    <select class="form-select" id="goal" required>
-                        <option value="lose">📉 減脂 (熱量赤字 15%)</option>
-                        <option value="maintain">⚖️ 維持體重</option>
-                        <option value="gain">💪 增肌 (熱量盈餘 10%)</option>
-                    </select>
-                </div>
-
-                <button type="submit" class="btn btn-primary w-100" id="submitBtn">儲存設定</button>
-                <div class="loading text-muted" id="loadingMsg">資料處理中，請稍候... 🔄</div>
-            </form>
-        </div>
+  <div id="dashboardArea" class="dashboard-card">
+    <div class="section-title">📊 今日攝取進度</div>
+    
+    <div class="progress-label">
+      <span>🔥 熱量 (Calories)</span>
+      <span id="labelCal">0 / 0 kcal</span>
     </div>
+    <div class="progress">
+      <div id="barCal" class="progress-bar bg-cal" style="width: 0%"></div>
+    </div>
+
+    <div class="progress-label">
+      <span>🥚 蛋白質 (Protein)</span>
+      <span id="labelPro">0 / 0 g</span>
+    </div>
+    <div class="progress">
+      <div id="barPro" class="progress-bar bg-pro" style="width: 0%"></div>
+    </div>
+
+    <div class="progress-label">
+      <span>🍚 碳水 (Carbs)</span>
+      <span id="labelCarb">0 / 0 g</span>
+    </div>
+    <div class="progress">
+      <div id="barCarb" class="progress-bar bg-carb" style="width: 0%"></div>
+    </div>
+
+    <div class="progress-label">
+      <span>🥑 脂肪 (Fat)</span>
+      <span id="labelFat">0 / 0 g</span>
+    </div>
+    <div class="progress">
+      <div id="barFat" class="progress-bar bg-fat" style="width: 0%"></div>
+    </div>
+  </div>
+
+  <div id="formArea" class="dashboard-card">
+    <div class="section-title">⚙️ 設定身體數值</div>
+    <form id="profileForm">
+      <div class="row">
+        <div class="col-6">
+          <label class="form-label">性別</label>
+          <select class="form-select" id="gender">
+            <option value="male">男生 🙋‍♂️</option>
+            <option value="female">女生 🙋‍♀️</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label">年齡</label>
+          <input type="number" class="form-control" id="age" placeholder="25">
+        </div>
+      </div>
+
+      <div class="row mt-2">
+        <div class="col-6">
+          <label class="form-label">身高 (cm)</label>
+          <input type="number" class="form-control" id="height" placeholder="175">
+        </div>
+        <div class="col-6">
+          <label class="form-label">體重 (kg)</label>
+          <input type="number" class="form-control" id="weight" placeholder="70">
+        </div>
+      </div>
+      
+      <div class="row mt-2">
+        <div class="col-6">
+          <label class="form-label">體脂率 (%)</label>
+          <input type="number" class="form-control" id="bodyFat" placeholder="選填">
+        </div>
+        <div class="col-6">
+          <label class="form-label">腰圍 (cm)</label>
+          <input type="number" class="form-control" id="waistLine" placeholder="選填">
+        </div>
+      </div>
+
+      <label class="form-label">日常活動量</label>
+      <select class="form-select" id="activity">
+        <option value="1.2">🛌 久坐 (幾乎不運動)</option>
+        <option value="1.375">🚶‍♂️ 輕度 (每週運動 1-3 天)</option>
+        <option value="1.55">🏃‍♂️ 中度 (每週運動 3-5 天)</option>
+        <option value="1.725">🏋️‍♂️ 高度 (每週運動 6-7 天)</option>
+        <option value="1.9">🔥 超級 (勞力工作/運動員)</option>
+      </select>
+
+      <label class="form-label">目標</label>
+      <select class="form-select" id="goal">
+        <option value="lose">📉 減脂 (熱量赤字 15%)</option>
+        <option value="maintain">⚖️ 維持 (TDEE 平衡)</option>
+        <option value="gain">💪 增肌 (熱量盈餘 10%)</option>
+      </select>
+      
+      <label class="form-label">備註 (過敏/飲食偏好)</label>
+      <input type="text" class="form-control" id="healthNotes" placeholder="例如：不吃牛、乳糖不耐">
+
+      <button type="submit" class="btn-save" id="submitBtn">更新設定</button>
+    </form>
+  </div>
 </div>
 
 <script>
-    // 🔴 🔴 🔴 請修改這裡 🔴 🔴 🔴
-    // 1. 這裡先填空字串，等一下申請好 LINE LIFF ID 再回來填
-    const LIFF_ID = "2008846678-Niw8fld9";
-    // 2. 請把你 n8n Webhook 的 Production URL 貼在引號裡
-    const N8N_WEBHOOK_URL = "https://evann8n.app.n8n.cloud/webhook/fitness-dashboard"; 
-    // 🔴 🔴 🔴 修改結束 🔴 🔴 🔴
+  // 🔴 請在此填入您的資訊 🔴
+  const LIFF_ID = "2006846678-Niw8fld9";  // 你的 LIFF ID
+  const API_URL = "https://evann8n.app.n8n.cloud/webhook/fitness-dashboard"; // 你的 n8n 正式網址
+  // 🔴 設定結束 🔴
 
+  let userId = "";
 
-    // 初始化 LIFF
-    async function main() {
-        // 如果還沒填 LIFF ID，先跳過初始化 (方便你在電腦瀏覽器測試排版)
-        if (!LIFF_ID) {
-            console.log("尚未設定 LIFF ID，跳過初始化");
-            return;
-        }
+  async function main() {
+    document.getElementById('loading').style.display = 'block';
+    
+    try {
+      await liff.init({ liffId: LIFF_ID });
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+      const profile = await liff.getProfile();
+      userId = profile.userId;
+      
+      // 1. 呼叫 n8n 取得資料 (GET)
+      fetchData(userId);
 
-        try {
-            await liff.init({ liffId: LIFF_ID });
-            if (!liff.isLoggedIn()) {
-                liff.login();
-            } else {
-                // 取得用戶資料
-                const profile = await liff.getProfile();
-                document.getElementById('userId').value = profile.userId;
-                document.getElementById('nickname').value = profile.displayName;
-            }
-        } catch (err) {
-            console.error("LIFF Initialization failed", err);
-        }
+    } catch (err) {
+      console.error('LIFF Init Failed', err);
+      alert('LIFF 初始化失敗：' + err.message);
     }
-    main();
+  }
 
-    // 送出表單
-    document.getElementById('profileForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+  // 取得資料並更新 UI
+  function fetchData(uid) {
+    fetch(`${API_URL}?user_id=${uid}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById('loading').style.display = 'none';
         
-        const btn = document.getElementById('submitBtn');
-        const loading = document.getElementById('loadingMsg');
-        
-        // 鎖定按鈕避免重複按
-        btn.disabled = true;
-        btn.innerText = "傳送中...";
-        loading.style.display = 'block';
-
-        // 收集資料
-        const formData = {
-            // 如果在電腦瀏覽器測試抓不到 ID，給一個測試 ID
-            user_id: document.getElementById('userId').value || "TEST_USER_001", 
-            nickname: document.getElementById('nickname').value || "測試用戶",
-            gender: document.getElementById('gender').value,
-            age: document.getElementById('age').value,
-            height: document.getElementById('height').value,
-            weight: document.getElementById('weight').value,
-            activity: document.getElementById('activity').value,
-            goal: document.getElementById('goal').value
-        };
-
-        try {
-            // 傳送給 n8n
-            const response = await fetch(N8N_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-
-            if (response.ok) {
-                alert('✅ 設定成功！您的 TDEE 已更新。');
-                if (liff.isInClient()) {
-                    liff.closeWindow(); // 在 LINE 裡面就關閉視窗
-                }
-            } else {
-                alert('❌ 設定失敗，請檢查 n8n 連線。');
-            }
-        } catch (error) {
-            alert('❌ 發生錯誤：' + error.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "儲存設定";
-            loading.style.display = 'none';
+        if (data.found) {
+          // A. 更新儀表板
+          updateDashboard(data.progress);
+          // B. 填入表單舊資料
+          fillForm(data.profile);
+          // 顯示區塊
+          document.getElementById('dashboardArea').style.display = 'block';
+        } else {
+          // 沒資料，只顯示表單
+          alert("歡迎新朋友！請先設定您的身體數值。");
         }
+        document.getElementById('formArea').style.display = 'block';
+      })
+      .catch(err => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('formArea').style.display = 'block'; // 至少顯示表單讓人填
+        alert("讀取資料失敗，請檢查網路或稍後再試。");
+      });
+  }
+
+  // 更新儀表板 UI
+  function updateDashboard(progress) {
+    if(!progress) return;
+    
+    setBar('Cal', progress.today_calories, progress.goal_calories, progress.pct_calories);
+    setBar('Pro', progress.today_protein, progress.goal_protein, progress.pct_protein);
+    setBar('Carb', progress.today_carbs, progress.goal_carbs, progress.pct_carbs);
+    setBar('Fat', progress.today_fat, progress.goal_fat, progress.pct_fat);
+  }
+
+  function setBar(type, current, goal, pct) {
+    const bar = document.getElementById(`bar${type}`);
+    const label = document.getElementById(`label${type}`);
+    
+    // 限制最大 100% 避免跑版，但如果超過可以用顏色警示
+    let width = pct > 100 ? 100 : pct;
+    bar.style.width = `${width}%`;
+    label.innerText = `${current} / ${goal} ${type==='Cal'?'kcal':'g'} (${pct}%)`;
+    
+    // 超標警示 (變成紅色)
+    if(pct > 100) bar.style.backgroundColor = '#dc3545'; 
+  }
+
+  // 自動填入表單
+  function fillForm(profile) {
+    if(!profile) return;
+    document.getElementById('gender').value = profile.gender || 'male';
+    document.getElementById('age').value = profile.age || '';
+    document.getElementById('height').value = profile.height || '';
+    document.getElementById('weight').value = profile.weight || '';
+    document.getElementById('activity').value = profile.activity || '1.2';
+    document.getElementById('goal').value = profile.goal || 'lose';
+    // 新欄位
+    document.getElementById('bodyFat').value = profile.body_fat || '';
+    document.getElementById('waistLine').value = profile.waist_line || '';
+    document.getElementById('healthNotes').value = profile.health_notes || '';
+  }
+
+  // 監聽表單送出 (POST)
+  document.getElementById('profileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "更新中...";
+
+    const formData = {
+      user_id: userId,
+      nickname: "User", // 之後可從 liff 抓暱稱
+      gender: document.getElementById('gender').value,
+      age: document.getElementById('age').value,
+      height: document.getElementById('height').value,
+      weight: document.getElementById('weight').value,
+      activity: document.getElementById('activity').value,
+      goal: document.getElementById('goal').value,
+      body_fat: document.getElementById('bodyFat').value,
+      waist_line: document.getElementById('waistLine').value,
+      health_notes: document.getElementById('healthNotes').value
+    };
+
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    })
+    .then(res => res.json())
+    .then(data => {
+      alert("✅ 設定更新成功！儀表板已同步更新。");
+      location.reload(); // 重新整理頁面以看見新數據
+    })
+    .catch(err => {
+      alert("❌ 更新失敗：" + err);
+      btn.disabled = false;
+      btn.innerText = "更新設定";
     });
+  });
+
+  main();
 </script>
 
 </body>
