@@ -4,274 +4,372 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 營養師 - 健康儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* 全局樣式 */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f7f9fc; padding: 20px; color: #333; }
-        
-        /* 卡片樣式 */
-        .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #2c3e50; }
-        
-        /* 進度條樣式 */
-        .progress-item { margin-bottom: 15px; }
-        .progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; color: #555; }
-        .progress-bar-bg { background-color: #eee; border-radius: 10px; height: 10px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
-        
-        /* ✨ 新增：摺疊區塊 (Details) 樣式 */
-        details { border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fff; margin-bottom: 20px; transition: 0.3s; }
-        details[open] { background: #fafafa; border-color: #ddd; }
-        summary { font-weight: bold; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; padding: 5px; color: #2c3e50; }
-        summary::after { content: '▼'; font-size: 0.8em; transition: 0.3s; color: #888; }
-        details[open] summary::after { transform: rotate(180deg); }
-        
-        /* ✨ 新增：食物清單樣式 */
-        .food-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
-        .food-item:last-child { border-bottom: none; }
-        .food-info { display: flex; flex-direction: column; }
-        .food-name { font-weight: bold; font-size: 15px; color: #333; }
-        .food-detail { font-size: 12px; color: #888; margin-top: 3px; }
-        
-        /* 垃圾桶刪除按鈕 */
-        .delete-btn { background: none; border: 1px solid #ffcccc; color: #ff4d4f; cursor: pointer; padding: 6px 12px; font-size: 13px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
-        .delete-btn:hover { background: #fff1f0; border-color: #ff4d4f; }
-
-        /* 表單與按鈕 */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; background: #fff; }
-        button.save-btn { width: 100%; background-color: #1DB446; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.save-btn:hover { background-color: #179c3d; }
-        button.save-btn:disabled { background-color: #ccc; cursor: not-allowed; }
-        
-        /* Loading 動畫 */
-        .loading { text-align: center; color: #999; font-size: 14px; padding: 20px; }
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* 讀取中的遮罩動畫 */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #000;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col items-center">
 
-    <div class="card">
-        <h2>📊 今日攝取進度</h2>
-        <div id="progressArea">
-            <div class="loading">正在讀取健康數據...</div>
-        </div>
+    <div class="w-full max-w-md bg-gray-50 h-full shadow-2xl flex flex-col relative overflow-y-auto no-scrollbar">
         
-        <div style="margin-top: 25px; border-top: 1px dashed #eee; padding-top: 15px;">
-            <h3 style="font-size: 14px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Today's Log</h3>
-            <div id="foodListArea">
-                <p style="font-size: 13px; color: #ccc; text-align: center;">今天還沒有紀錄喔！🥗</p>
+        <div class="bg-black text-white px-4 py-4 flex justify-between items-center sticky top-0 z-10 shadow-md">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-lg">AI 營養師</span>
+            </div>
+            <button onclick="fetchData()" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+        </div>
+
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/80 z-20 flex items-center justify-center">
+            <div class="flex flex-col items-center">
+                <div class="loader mb-2"></div>
+                <div class="text-xs text-gray-500 font-bold">資料更新中...</div>
             </div>
         </div>
+
+        <div class="p-4 space-y-4 pb-24">
+
+            <div class="bg-white rounded-2xl shadow-sm p-5">
+                <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
+                    📊 今日攝取進度
+                </h3>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-orange-50 p-3 rounded-xl border border-orange-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs text-gray-500 font-medium">🔥 熱量</span>
+                            <span id="percent-cal" class="text-xs text-orange-400 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="val-cal" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-cal">--</span></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div id="bar-cal" class="bg-orange-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs text-gray-500 font-medium">🥚 蛋白質</span>
+                            <span id="percent-pro" class="text-xs text-blue-400 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="val-pro" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-pro">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div id="bar-pro" class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs text-gray-500 font-medium">🍚 碳水</span>
+                            <span id="percent-carb" class="text-xs text-green-400 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="val-carb" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-carb">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div id="bar-carb" class="bg-green-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 p-3 rounded-xl border border-yellow-100">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-xs text-gray-500 font-medium">🥑 脂肪</span>
+                            <span id="percent-fat" class="text-xs text-yellow-500 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span id="val-fat" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-fat">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                            <div id="bar-fat" class="bg-yellow-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div onclick="toggleLog()" class="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors select-none">
+                    <h3 class="font-bold text-gray-500 text-sm tracking-widest uppercase flex items-center gap-2">
+                        📅 本日攝取明細
+                    </h3>
+                    <svg id="log-arrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+
+                <div id="log-content" class="px-5 pb-5 block space-y-3">
+                    <div class="text-center text-gray-400 text-sm py-4">載入中...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30">
+            <input type="file" id="image-upload" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
+            
+            <button onclick="document.getElementById('image-upload').click()" class="bg-black text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform active:scale-95">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+        </div>
+
     </div>
 
-    <details>
-        <summary>⚙️ 設定身體數值 / 目標 (點擊展開)</summary>
-        <div style="margin-top: 15px; padding: 5px;">
-            <form id="profileForm">
-                <div class="form-group">
-                    <label>性別</label>
-                    <select id="gender"><option value="male">男生 🙋‍♂️</option><option value="female">女生 🙋‍♀️</option></select>
-                </div>
-                <div class="form-group">
-                    <label>年齡</label>
-                    <input type="number" id="age" placeholder="25">
-                </div>
-                <div class="form-group">
-                    <label>身高 (cm)</label>
-                    <input type="number" id="height" placeholder="170">
-                </div>
-                <div class="form-group">
-                    <label>體重 (kg)</label>
-                    <input type="number" id="weight" placeholder="60">
-                </div>
-                <div class="form-group">
-                    <label>活動量</label>
-                    <select id="activity">
-                        <option value="1.2">久坐 (辦公室) 🛋️</option>
-                        <option value="1.375">輕度活動 (每週1-3天) 🚶</option>
-                        <option value="1.55">中度活動 (每週3-5天) 🏃</option>
-                        <option value="1.725">高度活動 (每週6-7天) 🔥</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>目標</label>
-                    <select id="goal">
-                        <option value="lose">減脂 (熱量 -300) 📉</option>
-                        <option value="maintain">維持 (TDEE) ⚖️</option>
-                        <option value="gain">增肌 (熱量 +300) 💪</option>
-                    </select>
-                </div>
-                <button type="button" class="save-btn" id="saveBtn" onclick="saveProfile()">💾 儲存設定</button>
-            </form>
-        </div>
-    </details>
-
     <script>
-        // ==========================================
-        // ⚠️ 請在此處填入你的資訊
-        // ==========================================
-        const LIFF_ID = "2008846678-Niw8fld9"; // 例如: 2008xxxxxx-xxxxxx
-        const API_URL = "https://evann8n.app.n8n.cloud/webhook/fitness-dashboard"; // LIFF Fitness API (讀取/設定用)
-        const DELETE_API_URL = "https://evann8n.app.n8n.cloud/webhook/delete-food"; // API - Delete Food Log (剛剛複製的那串)
-        // ==========================================
+        // 設定區
+        const LIFF_ID = '2008846678-Niw8fld9';
+        const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
+        const API_DELETE = 'https://evann8n.app.n8n.cloud/webhook/delete-food';
+        
+        // 預設目標 (如果 API 沒回傳目標值，就用這個當預設)
+        let userTargets = { cal: 2000, pro: 100, carb: 250, fat: 60 };
+        let currentUserId = ''; 
+        let currentLogs = []; // 暫存目前的食物紀錄
 
-        let userId = "";
-
-        async function main() {
+        // 初始化
+        window.onload = async function() {
             try {
                 await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    currentUserId = profile.userId;
+                    fetchData(); // 登入成功後抓資料
+                } else {
                     liff.login();
-                    return;
                 }
-                const profile = await liff.getProfile();
-                userId = profile.userId;
-                fetchData(); // 啟動讀取
             } catch (err) {
-                document.getElementById('progressArea').innerHTML = `<p style="color:red">LIFF 初始化失敗: ${err.message}</p>`;
+                console.error('LIFF Init Failed:', err);
+                // 測試模式：如果在電腦瀏覽器無法取得 LIFF，可以用一個假 ID 測試 UI
+                // currentUserId = 'TEST_USER';
+                // fetchData();
+                alert('LIFF 初始化失敗，請在 LINE App 中開啟。');
             }
-        }
+        };
 
-        // 讀取數據 (包含進度條 + 食物清單)
+        // 1. 抓取資料 (Dashboard API)
         async function fetchData() {
+            showLoading(true);
             try {
-                const res = await fetch(`${API_URL}?user_id=${userId}`);
-                const data = await res.json();
+                // 這裡假設是用 POST 帶 userId 查詢，如果是 GET 請自行修改
+                // 為了保險，這裡示範用 POST 傳 userId
+                const response = await fetch(API_DASHBOARD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, type: 'GET_DASHBOARD' })
+                });
+
+                const data = await response.json();
                 
-                // 1. 填入表單
-                document.getElementById('age').value = data.age || "";
-                document.getElementById('height').value = data.height || "";
-                document.getElementById('weight').value = data.weight || "";
-                document.getElementById('gender').value = data.gender || "male";
-                document.getElementById('activity').value = data.activity_level || "1.2";
-                document.getElementById('goal').value = data.goal || "maintain";
+                // 假設 API 回傳結構: { logs: [...], targets: { ... } }
+                // 如果 API 沒回傳 logs，請給預設空陣列
+                currentLogs = data.logs || []; 
+                if(data.targets) userTargets = { ...userTargets, ...data.targets };
 
-                // 2. 畫出進度條
-                renderProgress(data);
+                renderDashboard();
+                renderLogs();
 
-                // 3. ✨ 畫出食物清單 (檢查是否有 food_list)
-                if (data.food_list) {
-                    renderFoodList(data.food_list);
-                }
-
-            } catch (e) {
-                console.error(e);
-                alert("讀取資料失敗，請檢查網路");
+            } catch (error) {
+                console.error('Fetch Error:', error);
+                alert('資料讀取失敗，請檢查網路');
+            } finally {
+                showLoading(false);
             }
         }
 
-        // 渲染進度條函數
-        function renderProgress(data) {
-            const maxCal = data.target_calories || 2000;
-            const curCal = data.total_calories || 0;
-            const calPercent = Math.min((curCal / maxCal) * 100, 100);
+        // 2. 渲染儀表板 (計算與更新 UI)
+        function renderDashboard() {
+            // 計算總和
+            let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
             
-            // 這裡可以根據需要添加 蛋白質/脂肪/碳水 的進度條
-            document.getElementById('progressArea').innerHTML = `
-                <div class="progress-item">
-                    <div class="progress-label">
-                        <span>🔥 熱量 (Calories)</span>
-                        <span>${curCal} / ${maxCal} kcal</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" style="width: ${calPercent}%; background-color: #ffc107;"></div>
-                    </div>
-                </div>
-                <div style="font-size:12px; color:#888; text-align:center; margin-top:5px;">
-                    TDEE: ${data.tdee || 0} | 基礎代謝: ${data.bmr || 0}
-                </div>
-            `;
+            currentLogs.forEach(item => {
+                // 確保數值是數字
+                totals.cal += Number(item.calories) || 0;
+                totals.pro += Number(item.protein) || 0;
+                totals.carb += Number(item.carbs) || 0;
+                totals.fat += Number(item.fat) || 0;
+            });
+
+            // 更新 UI 數值
+            updateStat('cal', totals.cal, userTargets.cal);
+            updateStat('pro', totals.pro, userTargets.pro);
+            updateStat('carb', totals.carb, userTargets.carb);
+            updateStat('fat', totals.fat, userTargets.fat);
         }
 
-        // ✨ 渲染食物清單函數
-        function renderFoodList(list) {
-            const container = document.getElementById('foodListArea');
-            if (list.length === 0) {
-                container.innerHTML = '<p style="font-size: 13px; color: #ccc; text-align: center; padding: 10px;">今天還沒有紀錄喔！🥗</p>';
+        function updateStat(type, current, target) {
+            const elVal = document.getElementById(`val-${type}`);
+            const elGoal = document.getElementById(`goal-${type}`);
+            const elPercent = document.getElementById(`percent-${type}`);
+            const elBar = document.getElementById(`bar-${type}`);
+
+            // 避免分母為 0
+            const safeTarget = target > 0 ? target : 1;
+            const percent = Math.min(100, Math.round((current / safeTarget) * 100));
+
+            elVal.innerText = current;
+            elGoal.innerText = target;
+            elPercent.innerText = `${percent}%`;
+            elBar.style.width = `${percent}%`;
+        }
+
+        // 3. 渲染食物清單
+        function renderLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = ''; // 清空
+
+            if (currentLogs.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">今天還沒有紀錄喔，快拍張照吧！</div>';
                 return;
             }
 
-            let html = '';
-            // 倒序排列 (最新的在最上面)
-            list.reverse().forEach(item => {
-                html += `
-                <div class="food-item">
-                    <div class="food-info">
-                        <span class="food-name">${item.food}</span>
-                        <span class="food-detail">🔥 ${item.cal} kcal | 🥚 ${item.pro}g</span>
+            // 依照時間倒序 (新的在上面)
+            // 假設 logs 裡有 timestamp 或 created_at，如果沒有就直接顯示
+            const sortedLogs = [...currentLogs].reverse(); 
+
+            sortedLogs.forEach(item => {
+                // 根據項目屬性動態產生 HTML
+                const html = `
+                    <div class="flex justify-between items-center py-3 border-t border-gray-100 group">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-gray-100 p-2 rounded-lg text-lg">🍽️</div>
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">${item.food_name || '未命名食物'}</div>
+                                <div class="text-xs text-gray-500 mt-0.5 font-medium flex gap-2">
+                                    <span class="text-orange-500 font-bold">${item.calories || 0} kcal</span>
+                                    <span class="text-gray-300">|</span>
+                                    <span>C:${item.carbs || 0} P:${item.protein || 0} F:${item.fat || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="deleteItem('${item.id}', '${item.food_name}')" class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 px-3 py-1.5 border border-red-100 bg-red-50 text-red-500 text-xs rounded-md hover:bg-red-100 transition-all">
+                            刪除
+                        </button>
                     </div>
-                    <button class="delete-btn" onclick="deleteFood(${item.id})">
-                        🗑️ 刪除
-                    </button>
-                </div>`;
+                `;
+                container.insertAdjacentHTML('beforeend', html);
             });
-            container.innerHTML = html;
         }
 
-        // ✨ 刪除功能函數
-        async function deleteFood(rowId) {
-            if(!confirm("確定要刪除這筆紀錄嗎？(刪除後無法復原)")) return;
+        // 4. 上傳圖片處理
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-            // 讓按鈕變更狀態，避免重複點擊
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "⏳...";
-            btn.disabled = true;
+            showLoading(true);
 
-            try {
-                // 呼叫刪除 API
-                await fetch(DELETE_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ row_number: rowId })
-                });
+            // 將圖片轉 Base64
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                const base64Image = reader.result; // 包含 data:image/jpeg;base64,...
 
-                // 成功後，重新讀取整個頁面
-                fetchData(); 
+                try {
+                    // 傳送圖片給 n8n
+                    // 注意：這裏假設你的 fitness-dashboard API 可以接收 { image, userId } 來新增
+                    // 如果你的新增邏輯是另一個 Webhook，請修改這裡的 fetch URL
+                    const response = await fetch(API_DASHBOARD, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: currentUserId,
+                            image: base64Image,
+                            type: 'ADD_FOOD_IMAGE' // 給後端判斷用的標記
+                        })
+                    });
 
-            } catch (e) {
-                alert("刪除失敗，請稍後再試");
-                console.error(e);
-                // 失敗則還原按鈕
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        // 儲存設定函數
-        async function saveProfile() {
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.innerText = "⏳ 儲存中...";
-            saveBtn.disabled = true;
-
-            const payload = {
-                user_id: userId,
-                age: document.getElementById('age').value,
-                height: document.getElementById('height').value,
-                weight: document.getElementById('weight').value,
-                gender: document.getElementById('gender').value,
-                activity_level: document.getElementById('activity').value,
-                goal: document.getElementById('goal').value
+                    if (response.ok) {
+                        alert('分析完成！');
+                        fetchData(); // 重新抓取資料更新畫面
+                    } else {
+                        alert('上傳失敗，請稍後再試');
+                    }
+                } catch (error) {
+                    console.error('Upload Error:', error);
+                    alert('上傳發生錯誤');
+                } finally {
+                    showLoading(false);
+                    event.target.value = ''; // 清空 input 讓下次能選同一張
+                }
             };
+        }
 
+        // 5. 刪除項目
+        async function deleteItem(id, name) {
+            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+
+            showLoading(true);
             try {
-                await fetch(API_URL, {
+                const response = await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        id: id
+                    })
                 });
-                alert("✅ 設定已更新！目標熱量將重新計算。");
-                fetchData(); // 重新讀取以顯示新目標
-            } catch (e) {
-                alert("儲存失敗：" + e.message);
+
+                if (response.ok) {
+                    // 樂觀更新：先從前端陣列移除，讓體驗更順暢
+                    currentLogs = currentLogs.filter(item => item.id !== id);
+                    renderDashboard();
+                    renderLogs();
+                    // 也可以選擇重新 fetchData() 確保資料一致
+                } else {
+                    alert('刪除失敗');
+                }
+            } catch (error) {
+                console.error('Delete Error:', error);
+                alert('刪除發生錯誤');
             } finally {
-                saveBtn.innerText = "💾 儲存設定";
-                saveBtn.disabled = false;
+                showLoading(false);
             }
         }
 
-        main();
+        // UI 輔助函式：Loading 開關
+        function showLoading(show) {
+            const el = document.getElementById('loading-overlay');
+            if (show) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+
+        // UI 輔助函式：明細展開收合
+        function toggleLog() {
+            const content = document.getElementById('log-content');
+            const arrow = document.getElementById('log-arrow');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                content.classList.add('block');
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.remove('block');
+                content.classList.add('hidden');
+                arrow.style.transform = 'rotate(180deg)';
+            }
+        }
     </script>
 </body>
 </html>
