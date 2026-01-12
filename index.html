@@ -1,282 +1,51 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 營養師 - 健康儀表板</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <style>
-        /* 全局樣式 */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f7f9fc; padding: 20px; color: #333; }
-        
-        /* 卡片樣式 */
-        .card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        h2 { font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #2c3e50; }
-        
-        /* 進度條樣式 */
-        .progress-item { margin-bottom: 15px; }
-        .progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; color: #555; }
-        .progress-bar-bg { background-color: #eee; border-radius: 10px; height: 10px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; border-radius: 10px; transition: width 0.5s ease; }
-        
-        /* ✨ 摺疊區塊 (Details) 樣式 */
-        details { border: 1px solid #eee; border-radius: 12px; padding: 10px; background: #fff; margin-bottom: 20px; transition: 0.3s; }
-        details[open] { background: #fafafa; border-color: #ddd; }
-        summary { font-weight: bold; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; padding: 5px; color: #2c3e50; }
-        summary::after { content: '▼'; font-size: 0.8em; transition: 0.3s; color: #888; }
-        details[open] summary::after { transform: rotate(180deg); }
-        
-        /* ✨ 食物清單樣式 */
-        .food-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #eee; }
-        .food-item:last-child { border-bottom: none; }
-        .food-info { display: flex; flex-direction: column; }
-        .food-name { font-weight: bold; font-size: 15px; color: #333; }
-        .food-detail { font-size: 12px; color: #888; margin-top: 3px; }
-        
-        /* 垃圾桶刪除按鈕 */
-        .delete-btn { background: none; border: 1px solid #ffcccc; color: #ff4d4f; cursor: pointer; padding: 6px 12px; font-size: 13px; border-radius: 6px; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
-        .delete-btn:hover { background: #fff1f0; border-color: #ff4d4f; }
+<div class="bg-white rounded-xl shadow-sm p-5 mb-4">
+    <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center">
+        📊 今日攝取進度
+    </h3>
 
-        /* 表單與按鈕 */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-size: 14px; color: #666; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; background: #fff; }
-        button.save-btn { width: 100%; background-color: #1DB446; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        button.save-btn:hover { background-color: #179c3d; }
-        button.save-btn:disabled { background-color: #ccc; cursor: not-allowed; }
-        
-        /* Loading 動畫 */
-        .loading { text-align: center; color: #999; font-size: 14px; padding: 20px; }
-    </style>
-</head>
-<body>
-
-    <div class="card">
-        <h2>📊 今日攝取進度</h2>
-        <div id="progressArea">
-            <div class="loading">正在讀取健康數據...</div>
+    <div class="grid grid-cols-2 gap-4">
+        <div class="bg-orange-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">🔥 熱量 (kcal)</div>
+            <div class="font-bold text-gray-800 text-lg">
+                <span id="display-cal">450</span> / <span class="text-gray-400 text-sm">1191</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div id="progress-cal" class="bg-orange-500 h-1.5 rounded-full" style="width: 37%"></div>
+            </div>
         </div>
-        
-        <div style="margin-top: 25px; border-top: 1px dashed #eee; padding-top: 15px;">
-            <h3 style="font-size: 14px; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px;">Today's Log</h3>
-            <div id="foodListArea">
-                <p style="font-size: 13px; color: #ccc; text-align: center;">今天還沒有紀錄喔！🥗</p>
+
+        <div class="bg-blue-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">🥚 蛋白質 (g)</div>
+            <div class="font-bold text-gray-800 text-lg">
+                <span id="display-pro">35</span> / <span class="text-gray-400 text-sm">60</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div id="progress-pro" class="bg-blue-500 h-1.5 rounded-full" style="width: 58%"></div>
+            </div>
+        </div>
+
+        <div class="bg-green-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">🍚 碳水 (g)</div>
+            <div class="font-bold text-gray-800 text-lg">
+                <span id="display-carb">45</span> / <span class="text-gray-400 text-sm">130</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div id="progress-carb" class="bg-green-500 h-1.5 rounded-full" style="width: 34%"></div>
+            </div>
+        </div>
+
+        <div class="bg-yellow-50 p-3 rounded-lg">
+            <div class="text-xs text-gray-500 mb-1">🥑 脂肪 (g)</div>
+            <div class="font-bold text-gray-800 text-lg">
+                <span id="display-fat">12</span> / <span class="text-gray-400 text-sm">40</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div id="progress-fat" class="bg-yellow-500 h-1.5 rounded-full" style="width: 30%"></div>
             </div>
         </div>
     </div>
-
-    <details>
-        <summary>⚙️ 設定身體數值 / 目標 (點擊展開)</summary>
-        <div style="margin-top: 15px; padding: 5px;">
-            <form id="profileForm">
-                <div class="form-group">
-                    <label>性別</label>
-                    <select id="gender"><option value="male">男生 🙋‍♂️</option><option value="female">女生 🙋‍♀️</option></select>
-                </div>
-                <div class="form-group">
-                    <label>年齡</label>
-                    <input type="number" id="age" placeholder="25">
-                </div>
-                <div class="form-group">
-                    <label>身高 (cm)</label>
-                    <input type="number" id="height" placeholder="170">
-                </div>
-                <div class="form-group">
-                    <label>體重 (kg)</label>
-                    <input type="number" id="weight" placeholder="60">
-                </div>
-                <div class="form-group">
-                    <label>活動量</label>
-                    <select id="activity">
-                        <option value="1.2">久坐 (辦公室) 🛋️</option>
-                        <option value="1.375">輕度活動 (每週1-3天) 🚶</option>
-                        <option value="1.55">中度活動 (每週3-5天) 🏃</option>
-                        <option value="1.725">高度活動 (每週6-7天) 🔥</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>目標</label>
-                    <select id="goal">
-                        <option value="lose">減脂 (熱量 -300) 📉</option>
-                        <option value="maintain">維持 (TDEE) ⚖️</option>
-                        <option value="gain">增肌 (熱量 +300) 💪</option>
-                    </select>
-                </div>
-                <button type="button" class="save-btn" id="saveBtn" onclick="saveProfile()">💾 儲存設定</button>
-            </form>
-        </div>
-    </details>
-
-    <script>
-        // ==========================================
-        // ✅ 已經幫你填好所有正確資訊
-        // ==========================================
-        
-        const LIFF_ID = "2008846678-Niw8fld9"; 
-        
-        // 讀取/設定 API (n8n 主流程)
-        const API_URL = "https://evann8n.app.n8n.cloud/webhook/fitness-dashboard"; 
-        
-        // 刪除 API (n8n 刪除流程)
-        const DELETE_API_URL = "https://evann8n.app.n8n.cloud/webhook/delete-food";
-        
-        // ==========================================
-
-        let userId = "";
-
-        async function main() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
-                const profile = await liff.getProfile();
-                userId = profile.userId;
-                fetchData(); // 啟動讀取
-            } catch (err) {
-                document.getElementById('progressArea').innerHTML = `<p style="color:red">LIFF 初始化失敗: ${err.message}</p>`;
-            }
-        }
-
-        // 讀取數據
-        async function fetchData() {
-            try {
-                const res = await fetch(`${API_URL}?user_id=${userId}`);
-                const data = await res.json();
-                
-                // 1. 填入表單
-                document.getElementById('age').value = data.age || "";
-                document.getElementById('height').value = data.height || "";
-                document.getElementById('weight').value = data.weight || "";
-                document.getElementById('gender').value = data.gender || "male";
-                document.getElementById('activity').value = data.activity_level || "1.2";
-                document.getElementById('goal').value = data.goal || "maintain";
-
-                // 2. 畫出進度條
-                renderProgress(data);
-
-                // 3. 畫出食物清單
-                if (data.food_list) {
-                    renderFoodList(data.food_list);
-                }
-
-            } catch (e) {
-                console.error(e);
-                alert("讀取資料失敗，請檢查網路");
-            }
-        }
-
-        // 渲染進度條
-        function renderProgress(data) {
-            const maxCal = data.target_calories || 2000;
-            const curCal = data.total_calories || 0;
-            const calPercent = Math.min((curCal / maxCal) * 100, 100);
-            
-            // 這裡會顯示熱量進度
-            document.getElementById('progressArea').innerHTML = `
-                <div class="progress-item">
-                    <div class="progress-label">
-                        <span>🔥 熱量 (Calories)</span>
-                        <span>${curCal} / ${maxCal} kcal</span>
-                    </div>
-                    <div class="progress-bar-bg">
-                        <div class="progress-bar-fill" style="width: ${calPercent}%; background-color: #ffc107;"></div>
-                    </div>
-                </div>
-                <div style="font-size:12px; color:#888; text-align:center; margin-top:5px;">
-                    TDEE: ${data.tdee || 0} | 基礎代謝: ${data.bmr || 0}
-                </div>
-            `;
-        }
-
-        // 渲染食物清單 (含刪除按鈕)
-        function renderFoodList(list) {
-            const container = document.getElementById('foodListArea');
-            if (list.length === 0) {
-                container.innerHTML = '<p style="font-size: 13px; color: #ccc; text-align: center; padding: 10px;">今天還沒有紀錄喔！🥗</p>';
-                return;
-            }
-
-            let html = '';
-            // 倒序排列 (最新的顯示在最上面)
-            list.reverse().forEach(item => {
-                html += `
-                <div class="food-item">
-                    <div class="food-info">
-                        <span class="food-name">${item.food}</span>
-                        <span class="food-detail">🔥 ${item.cal} kcal | 🥚 ${item.pro}g</span>
-                    </div>
-                    <button class="delete-btn" onclick="deleteFood(${item.id})">
-                        🗑️ 刪除
-                    </button>
-                </div>`;
-            });
-            container.innerHTML = html;
-        }
-
-        // 刪除功能
-        async function deleteFood(rowId) {
-            if(!confirm("確定要刪除這筆紀錄嗎？(刪除後無法復原)")) return;
-
-            // 讓按鈕變更狀態
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "⏳...";
-            btn.disabled = true;
-
-            try {
-                // 呼叫刪除 API
-                await fetch(DELETE_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ row_number: rowId })
-                });
-
-                // 成功後，重新讀取頁面
-                fetchData(); 
-
-            } catch (e) {
-                alert("刪除失敗，請稍後再試");
-                console.error(e);
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
-
-        // 儲存設定
-        async function saveProfile() {
-            const saveBtn = document.getElementById('saveBtn');
-            saveBtn.innerText = "⏳ 儲存中...";
-            saveBtn.disabled = true;
-
-            const payload = {
-                user_id: userId,
-                age: document.getElementById('age').value,
-                height: document.getElementById('height').value,
-                weight: document.getElementById('weight').value,
-                gender: document.getElementById('gender').value,
-                activity_level: document.getElementById('activity').value,
-                goal: document.getElementById('goal').value
-            };
-
-            try {
-                await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                alert("✅ 設定已更新！目標熱量將重新計算。");
-                fetchData(); // 重新讀取以顯示新目標
-            } catch (e) {
-                alert("儲存失敗：" + e.message);
-            } finally {
-                saveBtn.innerText = "💾 儲存設定";
-                saveBtn.disabled = false;
-            }
-        }
-
-        main();
-    </script>
-</body>
-</html>
+    
+    <div class="text-center mt-4 text-xs text-gray-400">
+        TDEE: 1191 | 基礎代謝: 1168
+    </div>
+</div>
