@@ -29,13 +29,13 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-red-600 px-1 rounded ml-1">v9.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-green-600 px-1 rounded ml-1">v10.0</span></span>
             </div>
             <div class="flex gap-3">
-                <button onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <button type="button" onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                 </button>
-                <button onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <button type="button" onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </button>
             </div>
@@ -139,10 +139,10 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v9.0]</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v10.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>Status: <span id="debug-status">--</span></p>
-                <p>Last Action: <span id="debug-action" class="text-red-500">None</span></p>
+                <p>Last Action: <span id="debug-action" class="text-green-600">--</span></p>
             </div>
 
         </div>
@@ -153,7 +153,7 @@
         <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">⚙️ 設定身體數值</h3>
-                <button onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                <button type="button" onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
                     <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
@@ -169,7 +169,7 @@
                 </div>
                 <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3"><option value="1.2">久坐</option><option value="1.375">輕度</option><option value="1.55">中度</option><option value="1.725">高度</option></select></label>
                 <label class="block"><span class="text-sm font-bold">目標</span><select id="input-goal" class="mt-1 block w-full rounded-xl border p-3"><option value="0.85">減脂</option><option value="1.0" selected>維持</option><option value="1.10">增肌</option></select></label>
-                <button onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
+                <button type="button" onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
             </div>
         </div>
     </div>
@@ -184,7 +184,6 @@
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {}; 
 
-        // 記錄動作，方便除錯
         function logAction(action) {
             document.getElementById('debug-action').innerText = action;
             console.log('Action:', action);
@@ -257,13 +256,10 @@
                 renderDashboard();
                 renderLogs();
 
-                // 【V9 終極修正：只要成功讀取過一次，就算訪客】
-                localStorage.setItem('hasVisited', 'true'); // 蓋章
+                // 【智慧防擾】: 只要成功讀取過一次，就標記為「訪客」，不再跳出。
+                localStorage.setItem('hasVisited', 'true'); 
                 
-                const hasVisited = localStorage.getItem('hasVisited');
                 // 只有「完全沒來過」的人才跳。
-                // 既然上面已經設為 true，理論上這行永遠不會在第二次觸發。
-                // 除非是「第一次」載入，且熱量還是預設值。
                 if (source === 'init' && userTargets.cal === 2000 && !localStorage.getItem('userTargets')) {
                     setTimeout(() => toggleSettings(true), 500); 
                 }
@@ -324,7 +320,7 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // 注意：這裡加入了 event 參數，防止點擊穿透
+                // 強制按鈕 type="button" 避免表單提交
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
@@ -337,41 +333,40 @@
                                 </div>
                             </div>
                         </div>
-                        ${id ? `<button onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
+                        ${id ? `<button type="button" onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
                     </div>`;
                 container.insertAdjacentHTML('beforeend', html);
             });
         }
 
-        async function deleteItem(event, id, name) {
-            // 【V9 關鍵修正】阻止事件冒泡，防止誤觸其他功能導致刷新
-            event.stopPropagation();
+        // 【V10 核心：射後不理 + 防刷新】
+        function deleteItem(event, id, name) {
+            // 1. 阻止事件冒泡與預設行為 (避免刷新)
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault(); 
+            }
             
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            logAction('Delete Item'); // 記錄動作
+            logAction('Delete Item (Optimistic)');
             
-            // 1. 本地刪除 (極速)
-            const originalLogs = [...currentLogs]; 
+            // 2. 本地直接刪除 (這是使用者看到的)
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             renderDashboard(); 
             renderLogs();
 
-            // 2. 絕對不顯示 loading!
-            try {
-                // 不使用 await 等待結果阻擋 UI，讓它在背景跑
-                fetch(API_DELETE, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUserId, id: id })
-                }).catch(e => {
-                    console.error(e);
-                    // 只有真的失敗才跳 Alert，且此時使用者可能已經關掉網頁了，降低干擾
-                });
-            } catch (error) { 
-                // 這裡通常抓不到 fetch 的錯因為沒 await，主要抓同步錯誤
-                console.error('Sync Error', error);
-            } 
+            // 3. 背景發送請求 (完全不等待，不轉圈，不回復)
+            // 使用 .then 而不是 await，確保主執行緒完全自由
+            fetch(API_DELETE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, id: id })
+            }).then(() => {
+                console.log('Background Delete Success');
+            }).catch(e => {
+                console.error('Background Delete Error (Ignored)', e);
+            });
         }
 
         async function saveProfile() {
@@ -397,7 +392,7 @@
             userProfile = { gender, age, height, weight, activity };
             localStorage.setItem('userTargets', JSON.stringify(userTargets));
             localStorage.setItem('userProfile', JSON.stringify(userProfile));
-            localStorage.setItem('hasVisited', 'true'); // 確保存檔後絕對不再跳
+            localStorage.setItem('hasVisited', 'true');
             
             toggleSettings(false);
             renderDashboard();
