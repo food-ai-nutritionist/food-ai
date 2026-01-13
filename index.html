@@ -9,10 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
-        /* 隱藏捲軸 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* Loading Spinner */
         .loader {
             border: 3px solid #f3f3f3;
             border-radius: 50%;
@@ -21,7 +19,6 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Modal Transition */
         .modal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
     </style>
@@ -151,7 +148,6 @@
 
     <div id="settings-modal" class="hidden fixed inset-0 z-40">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleSettings(false)"></div>
-        
         <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">⚙️ 身體數值設定</h3>
@@ -174,7 +170,6 @@
                         <input type="number" id="input-age" class="mt-1 block w-full rounded-xl border-gray-200 bg-gray-50 border p-3" placeholder="25">
                     </label>
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
                     <label class="block">
                         <span class="text-gray-700 text-sm font-bold">身高 (cm)</span>
@@ -185,7 +180,6 @@
                         <input type="number" id="input-weight" class="mt-1 block w-full rounded-xl border-gray-200 bg-gray-50 border p-3" placeholder="70">
                     </label>
                 </div>
-
                 <label class="block">
                     <span class="text-gray-700 text-sm font-bold">每週運動頻率</span>
                     <select id="input-activity" class="mt-1 block w-full rounded-xl border-gray-200 bg-gray-50 border p-3">
@@ -196,7 +190,6 @@
                         <option value="1.9">極高度 (運動員)</option>
                     </select>
                 </label>
-
                 <label class="block">
                     <span class="text-gray-700 text-sm font-bold">希望目標</span>
                     <select id="input-goal" class="mt-1 block w-full rounded-xl border-gray-200 bg-gray-50 border p-3">
@@ -205,10 +198,9 @@
                         <option value="1.10">增肌 (熱量 +10%)</option>
                     </select>
                 </label>
-
                 <div class="pt-4">
                     <button onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg hover:scale-[1.02] transition-transform active:scale-95">
-                        計算 TDEE 並儲存
+                        計算並儲存
                     </button>
                 </div>
             </div>
@@ -216,21 +208,18 @@
     </div>
 
     <script>
-        // === Configuration ===
         const LIFF_ID = '2008846678-Niw8fld9';
         const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
         const API_DELETE = 'https://evann8n.app.n8n.cloud/webhook/delete-food';
 
-        // === State Management ===
-        let currentUserId = ''; // Will be populated by LIFF
+        let currentUserId = ''; 
         let currentLogs = [];
-        let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; // Defaults
+        let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {};
         let lastApiData = null;
 
-        // === Initialization ===
         window.onload = async function() {
-            // Load LocalStorage targets first (Fallback)
+            // 本地緩存
             const savedTargets = localStorage.getItem('userTargets');
             const savedProfile = localStorage.getItem('userProfile');
             if (savedTargets) userTargets = JSON.parse(savedTargets);
@@ -238,44 +227,41 @@
                 userProfile = JSON.parse(savedProfile);
                 populateProfileForm(userProfile);
             }
-            renderDashboard(); // Render initial state
+            renderDashboard();
 
-            // Initialize LIFF
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
                     const profile = await liff.getProfile();
                     currentUserId = profile.userId;
-                    console.log('User ID:', currentUserId);
-                    fetchData(); // Fetch real data
+                    fetchData(); // 登入後抓資料
                 } else {
                     liff.login();
                 }
             } catch (err) {
                 console.error('LIFF Init Error:', err);
-                // For desktop testing without LIFF
-                // currentUserId = 'TEST_USER_DESKTOP'; 
-                // fetchData();
             }
         };
 
-        // === Feature 2: Dashboard Logic (Fetch Data) ===
+        // 1. 讀取資料 (改用 GET)
         async function fetchData() {
             showLoading(true);
             try {
-                const response = await fetch(API_DASHBOARD, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUserId, type: 'GET_DASHBOARD' })
+                // 【修正】：改用 GET，並把 userId 放在 URL 參數
+                const url = new URL(API_DASHBOARD);
+                url.searchParams.append('userId', currentUserId);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
                 });
 
                 const data = await response.json();
                 lastApiData = data;
 
-                // Robust Data Handling
+                // n8n 回傳格式相容處理
                 if (data.logs) {
                     currentLogs = data.logs;
-                    // If API returns targets/profile, update local state
                     if (data.targets) {
                         userTargets = { ...userTargets, ...data.targets };
                         localStorage.setItem('userTargets', JSON.stringify(userTargets));
@@ -299,7 +285,7 @@
             } catch (error) {
                 console.error('Fetch Error:', error);
                 document.getElementById('log-content').innerHTML = 
-                    '<div class="text-center text-red-400 text-sm py-4">無法連線伺服器</div>';
+                    '<div class="text-center text-red-400 text-sm py-4">讀取失敗，請檢查網路</div>';
             } finally {
                 showLoading(false);
             }
@@ -327,261 +313,4 @@
             const elVal = document.getElementById(`val-${type}`);
             const elGoal = document.getElementById(`goal-${type}`);
             const elPercent = document.getElementById(`percent-${type}`);
-            const elBar = document.getElementById(`bar-${type}`);
-
-            // Ensure we don't divide by zero
-            const safeTarget = target > 0 ? target : 1; 
-            const percent = Math.min(100, Math.round((current / safeTarget) * 100));
-
-            if(elVal) elVal.innerText = Math.round(current);
-            if(elGoal) elGoal.innerText = Math.round(target);
-            if(elPercent) elPercent.innerText = `${percent}%`;
-            if(elBar) elBar.style.width = `${percent}%`;
-        }
-
-        // === Feature 3: Food Log Logic ===
-        function renderLogs() {
-            const container = document.getElementById('log-content');
-            container.innerHTML = ''; 
-
-            if (!currentLogs || currentLogs.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄<br>按下方按鈕拍照</div>';
-                return;
-            }
-
-            // Reverse to show newest first
-            const sortedLogs = [...currentLogs].reverse();
-
-            sortedLogs.forEach(item => {
-                const name = item.food_name || item.name || item['食物名稱'] || '未命名食物';
-                const cal = Math.round(item.calories || item.cal || item['熱量'] || 0);
-                const p = Math.round(item.protein || item.pro || 0);
-                const c = Math.round(item.carbs || item.carb || 0);
-                const f = Math.round(item.fat || 0);
-                const id = item.id || item._id || item.log_id;
-
-                const html = `
-                    <div class="flex justify-between items-center py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors px-2 rounded-lg">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-gray-100 p-2.5 rounded-xl text-xl shadow-sm">🍽️</div>
-                            <div>
-                                <div class="font-bold text-gray-800 text-sm">${name}</div>
-                                <div class="text-xs text-gray-500 mt-1 font-medium flex gap-2 items-center">
-                                    <span class="text-orange-500 font-bold bg-orange-50 px-1.5 py-0.5 rounded">${cal} kcal</span>
-                                    <span class="text-gray-300">|</span>
-                                    <span class="text-[10px]">C:${c} P:${p} F:${f}</span>
-                                </div>
-                            </div>
-                        </div>
-                        ${id ? `
-                        <button onclick="deleteItem('${id}', '${name}')" class="group p-2 rounded-full hover:bg-red-50 transition-colors">
-                            <svg class="w-5 h-5 text-gray-300 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>` : ''}
-                    </div>
-                `;
-                container.insertAdjacentHTML('beforeend', html);
-            });
-        }
-
-        async function deleteItem(id, name) {
-            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
-            
-            showLoading(true);
-            try {
-                // Optimistic UI update: Remove from local array first
-                currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id) !== id);
-                renderDashboard();
-                renderLogs();
-
-                const response = await fetch(API_DELETE, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUserId, id: id })
-                });
-
-                if (!response.ok) {
-                    alert('刪除失敗，請重新整理');
-                    fetchData(); // Rollback if failed
-                }
-            } catch (error) {
-                console.error('Delete Error:', error);
-                alert('連線錯誤');
-                fetchData();
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // === Feature 4: Profile & TDEE Calculator ===
-        function toggleSettings(show) {
-            const modal = document.getElementById('settings-modal');
-            const content = modal.querySelector('.modal-content');
-            
-            if (show) {
-                modal.classList.remove('hidden');
-                // Small delay for transition
-                setTimeout(() => {
-                    content.classList.remove('translate-y-full');
-                }, 10);
-            } else {
-                content.classList.add('translate-y-full');
-                setTimeout(() => {
-                    modal.classList.add('hidden');
-                }, 300);
-            }
-        }
-
-        function populateProfileForm(profile) {
-            if (profile.gender) document.getElementById('input-gender').value = profile.gender;
-            if (profile.age) document.getElementById('input-age').value = profile.age;
-            if (profile.height) document.getElementById('input-height').value = profile.height;
-            if (profile.weight) document.getElementById('input-weight').value = profile.weight;
-            if (profile.activity) document.getElementById('input-activity').value = profile.activity;
-            if (profile.goal) document.getElementById('input-goal').value = profile.goal;
-        }
-
-        async function saveProfile() {
-            const gender = document.getElementById('input-gender').value;
-            const age = Number(document.getElementById('input-age').value);
-            const height = Number(document.getElementById('input-height').value);
-            const weight = Number(document.getElementById('input-weight').value);
-            const activity = Number(document.getElementById('input-activity').value);
-            const goal = Number(document.getElementById('input-goal').value);
-
-            if (!age || !height || !weight) {
-                alert('請填寫完整數值');
-                return;
-            }
-
-            showLoading(true);
-
-            // 1. Calculate BMR (Mifflin-St Jeor)
-            let bmr = 0;
-            if (gender === 'male') {
-                bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
-            } else {
-                bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
-            }
-
-            // 2. Calculate TDEE
-            let tdee = bmr * activity;
-
-            // 3. Apply Goal Adjustment
-            let targetCal = Math.round(tdee * goal);
-
-            // 4. Calculate Macros (Assume balanced split: P:30% / F:30% / C:40% or standard fitness)
-            // Let's use a standard fitness split: P 25%, F 25%, C 50% roughly
-            // Or simpler: P = 2g/kg roughly. Let's strictly follow caloric percentages for simplicity here.
-            // Protein (25%): 4cal/g
-            // Fat (25%): 9cal/g
-            // Carbs (50%): 4cal/g
-            
-            const targetPro = Math.round((targetCal * 0.25) / 4);
-            const targetFat = Math.round((targetCal * 0.25) / 9);
-            const targetCarb = Math.round((targetCal * 0.50) / 4);
-
-            const newTargets = {
-                cal: targetCal,
-                pro: targetPro,
-                carb: targetCarb,
-                fat: targetFat
-            };
-
-            const newProfile = { gender, age, height, weight, activity, goal };
-
-            // Update Local State
-            userTargets = newTargets;
-            userProfile = newProfile;
-            localStorage.setItem('userTargets', JSON.stringify(userTargets));
-            localStorage.setItem('userProfile', JSON.stringify(userProfile));
-
-            // Close Modal & Re-render
-            toggleSettings(false);
-            renderDashboard();
-
-            // API Sync
-            try {
-                await fetch(API_DASHBOARD, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: currentUserId,
-                        type: 'UPDATE_PROFILE',
-                        profile: newProfile,
-                        targets: newTargets
-                    })
-                });
-                alert(`TDEE 已更新: ${targetCal} kcal`);
-            } catch (err) {
-                console.error('Save Profile Error', err);
-                alert('儲存失敗，但本機已更新');
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // === Feature 5: Image Upload ===
-        async function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            showLoading(true);
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                const base64Image = reader.result;
-                try {
-                    const response = await fetch(API_DASHBOARD, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            userId: currentUserId,
-                            image: base64Image,
-                            type: 'ADD_FOOD_IMAGE'
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        alert('分析完成！');
-                        fetchData(); // Refresh data
-                    } else {
-                        alert('上傳失敗');
-                    }
-                } catch (error) {
-                    console.error('Upload Error:', error);
-                    alert('上傳發生錯誤');
-                } finally {
-                    showLoading(false);
-                    event.target.value = ''; // Reset input
-                }
-            };
-        }
-
-        // === Utilities ===
-        function showLoading(show) {
-            const el = document.getElementById('loading-overlay');
-            if (show) el.classList.remove('hidden');
-            else el.classList.add('hidden');
-        }
-
-        function toggleLog() {
-            const content = document.getElementById('log-content');
-            const arrow = document.getElementById('log-arrow');
-            if (content.classList.contains('hidden')) {
-                content.classList.remove('hidden');
-                content.classList.add('block');
-                arrow.style.transform = 'rotate(0deg)';
-            } else {
-                content.classList.remove('block');
-                content.classList.add('hidden');
-                arrow.style.transform = 'rotate(180deg)';
-            }
-        }
-
-        function debugInfo() {
-            if(lastApiData) alert("API Debug:\n" + JSON.stringify(lastApiData, null, 2));
-            else alert("No API data loaded yet.");
-        }
-    </script>
-</body>
-</html>
+            const elBar = document.getElementById(`bar-${
