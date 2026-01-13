@@ -29,7 +29,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-pink-600 px-1 rounded ml-1">v13.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v11.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -139,10 +139,9 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v13.0]</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v11.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>Status: <span id="debug-status">--</span></p>
-                <p>Last Action: <span id="debug-action" class="text-pink-600">--</span></p>
             </div>
 
         </div>
@@ -184,14 +183,7 @@
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {}; 
 
-        function logAction(action) {
-            const el = document.getElementById('debug-action');
-            if(el) el.innerText = action;
-            console.log('Action:', action);
-        }
-
         window.onload = async function() {
-            logAction('Window Load');
             // 本地緩存讀取
             try {
                 const savedTargets = localStorage.getItem('userTargets');
@@ -225,8 +217,13 @@
         };
 
         async function fetchData(source) {
-            // 一般讀取時顯示 Loading
-            showLoading(true);
+            // 【V11 防重整策略】如果剛剛才刪除過 (sessionStorage有標記)，就默默讀取，不要轉圈圈
+            const justDeleted = sessionStorage.getItem('justDeleted');
+            if (!justDeleted) {
+                showLoading(true);
+            } else {
+                sessionStorage.removeItem('justDeleted'); // 用完即丟
+            }
 
             try {
                 const url = new URL(API_DASHBOARD);
@@ -320,7 +317,7 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // V13.0 使用相容性高的參數傳遞
+                // 【V11 關鍵修改】使用 div 代替 button，並加入 cursor-pointer，徹底防止表單提交
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
@@ -339,45 +336,29 @@
             });
         }
 
-        // 【V13.0 自動重整邏輯】
-        async function deleteItem(arg1, arg2) {
-            const evt = window.event || arguments[0];
-            if (evt && evt.stopPropagation) {
-                evt.stopPropagation();
-                evt.preventDefault();
+        function deleteItem(event, id, name) {
+            // 防止點擊穿透
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault(); 
             }
-
-            let id = arg1;
-            let name = arg2;
-            if (typeof arg1 === 'object') {
-                // 如果 arg1 是事件物件，那參數應該往後挪，這行是相容舊版快取的
-                // 但因為上方 HTML 已經寫死傳遞順序，這裡主要是防呆
-            }
-
+            
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            logAction('Delete: ' + name);
+            // 標記「我正在刪除」，萬一頁面重整，也不要顯示 Loading
+            sessionStorage.setItem('justDeleted', 'true');
             
-            // 1. 顯示 Loading (告訴使用者正在處理，請稍等)
-            showLoading(true);
+            // 本地直接刪除 (極速 UI)
+            currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+            renderDashboard(); 
+            renderLogs();
 
-            try {
-                // 2. 呼叫刪除 API 並等待完成 (Await)
-                await fetch(API_DELETE, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUserId, id: id })
-                });
-
-                // 3. 刪除成功後，自動重新抓取最新資料 (Auto Refresh)
-                await fetchData('auto_refresh'); 
-                // 注意：fetchData 裡面會負責關閉 Loading
-
-            } catch (error) { 
-                console.error('Delete Failed', error);
-                alert('刪除失敗，請檢查網路');
-                showLoading(false); 
-            } 
+            // 背景刪除
+            fetch(API_DELETE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, id: id })
+            }).catch(e => console.error(e));
         }
 
         async function saveProfile() {
@@ -434,7 +415,6 @@
             a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
         function toggleSettings(show) {
-            logAction('Toggle Settings');
             const m = document.getElementById('settings-modal');
             const c = m.querySelector('.modal-content');
             if(show) { m.classList.remove('hidden'); setTimeout(()=>c.classList.remove('translate-y-full'),10); }
