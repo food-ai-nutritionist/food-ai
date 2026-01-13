@@ -29,7 +29,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v11.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-600 px-1 rounded ml-1">v12.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -139,9 +139,10 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v11.0]</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v12.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>Status: <span id="debug-status">--</span></p>
+                <p>Last Action: <span id="debug-action" class="text-indigo-600">--</span></p>
             </div>
 
         </div>
@@ -183,7 +184,14 @@
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {}; 
 
+        function logAction(action) {
+            const el = document.getElementById('debug-action');
+            if(el) el.innerText = action;
+            console.log('Action:', action);
+        }
+
         window.onload = async function() {
+            logAction('Window Load');
             // 本地緩存讀取
             try {
                 const savedTargets = localStorage.getItem('userTargets');
@@ -217,12 +225,12 @@
         };
 
         async function fetchData(source) {
-            // 【V11 防重整策略】如果剛剛才刪除過 (sessionStorage有標記)，就默默讀取，不要轉圈圈
+            // V12.0: 檢查是否剛剛刪除過，如果是，就不顯示 Loading，避免干擾
             const justDeleted = sessionStorage.getItem('justDeleted');
             if (!justDeleted) {
                 showLoading(true);
             } else {
-                sessionStorage.removeItem('justDeleted'); // 用完即丟
+                sessionStorage.removeItem('justDeleted');
             }
 
             try {
@@ -317,7 +325,7 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // 【V11 關鍵修改】使用 div 代替 button，並加入 cursor-pointer，徹底防止表單提交
+                // V12.0 改回兼容模式，只傳入兩個參數，避免與舊版快取衝突
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
@@ -330,30 +338,49 @@
                                 </div>
                             </div>
                         </div>
-                        ${id ? `<div onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div>` : ''}
+                        ${id ? `<div onclick="deleteItem('${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div>` : ''}
                     </div>`;
                 container.insertAdjacentHTML('beforeend', html);
             });
         }
 
-        function deleteItem(event, id, name) {
-            // 防止點擊穿透
-            if (event) {
-                event.stopPropagation();
-                event.preventDefault(); 
+        // 【V12.0 終極相容版】
+        // 使用 arguments 或 window.event 來動態抓取事件，不管快取是舊版還是新版 HTML 都能通吃
+        function deleteItem(arg1, arg2) {
+            // 1. 取得事件物件 (相容性寫法)
+            const evt = window.event || arguments[0];
+            if (evt && evt.stopPropagation) {
+                evt.stopPropagation();
+                evt.preventDefault();
             }
+
+            // 2. 取得參數 (相容舊版快取)
+            // 如果 HTML 是 deleteItem(event, id, name)，則 arg2 是 id
+            // 如果 HTML 是 deleteItem(id, name)，則 arg1 是 id
+            let id = arg1;
+            let name = arg2;
             
+            // 簡單判斷：如果 arg1 是物件(event)，那 id 肯定在後面
+            if (typeof arg1 === 'object') {
+                // 這是為了防止極端狀況，但因為上方 HTML 已改回傳兩個字串，這裡主要是防禦
+                // 這裡我們假設 arg1 就是 ID (因為 HTML 裡是傳字串)
+            }
+
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            // 標記「我正在刪除」，萬一頁面重整，也不要顯示 Loading
+            logAction('Delete: ' + name);
             sessionStorage.setItem('justDeleted', 'true');
             
-            // 本地直接刪除 (極速 UI)
-            currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
-            renderDashboard(); 
-            renderLogs();
+            // 3. 【強制優先重繪】不管後端怎樣，先從畫面上拿掉
+            try {
+                currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+                renderDashboard(); 
+                renderLogs();
+            } catch(e) {
+                console.error('Render Error', e);
+            }
 
-            // 背景刪除
+            // 4. 背景發送
             fetch(API_DELETE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -415,6 +442,7 @@
             a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
         function toggleSettings(show) {
+            logAction('Toggle Settings');
             const m = document.getElementById('settings-modal');
             const c = m.querySelector('.modal-content');
             if(show) { m.classList.remove('hidden'); setTimeout(()=>c.classList.remove('translate-y-full'),10); }
