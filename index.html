@@ -48,7 +48,7 @@
             </div>
         </div>
 
-        <div class="p-4 space-y-4 pb-32">
+        <div class="p-4 space-y-4 pb-12">
 
             <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
                 <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
@@ -126,12 +126,20 @@
                 </div>
             </div>
             
-            <div onclick="toggleSettings(true)" class="text-center text-xs text-gray-400 mt-4 cursor-pointer hover:text-gray-600 transition-colors">
-                設定身體數值以獲得準確目標 &rarr;
+            <div onclick="toggleSettings(true)" class="bg-white rounded-2xl shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors select-none">
+                <div class="p-5 flex justify-between items-center">
+                    <h3 class="font-bold text-gray-500 text-sm tracking-widest uppercase flex items-center gap-2">
+                        ⚙️ 設定身體數值
+                    </h3>
+                    <div class="flex items-center gap-2 text-xs text-gray-400">
+                        <span>獲得準確目標</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                </div>
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 (請截圖這塊)</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>API Status: <span id="debug-status">--</span></p>
                 <p>Logs Count: <span id="debug-count">0</span></p>
@@ -139,19 +147,18 @@
 
         </div>
 
-        <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-30">
-            <input type="file" id="image-upload" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
-            <button onclick="document.getElementById('image-upload').click()" class="bg-black text-white w-16 h-16 rounded-full shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-gray-100">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-            </button>
         </div>
-
-    </div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-40">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleSettings(false)"></div>
         <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
-            <h3 class="text-xl font-bold text-gray-800 mb-6">⚙️ 設定</h3>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">⚙️ 設定身體數值</h3>
+                <button onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            
             <div class="space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar pb-10">
                 <div class="grid grid-cols-2 gap-4">
                     <label class="block"><span class="text-sm font-bold">性別</span><select id="input-gender" class="mt-1 block w-full rounded-xl border p-3"><option value="male">男性</option><option value="female">女性</option></select></label>
@@ -163,7 +170,7 @@
                 </div>
                 <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3"><option value="1.2">久坐</option><option value="1.375">輕度</option><option value="1.55">中度</option><option value="1.725">高度</option></select></label>
                 <label class="block"><span class="text-sm font-bold">目標</span><select id="input-goal" class="mt-1 block w-full rounded-xl border p-3"><option value="0.85">減脂</option><option value="1.0" selected>維持</option><option value="1.10">增肌</option></select></label>
-                <button onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4">儲存設定</button>
+                <button onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
             </div>
         </div>
     </div>
@@ -179,12 +186,12 @@
         let userProfile = {};
 
         window.onload = async function() {
-            // 讀取本地緩存 (防呆：如果緩存是壞的，用預設值)
+            // 本地緩存讀取
             try {
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
                     const parsed = JSON.parse(savedTargets);
-                    if(parsed.cal > 500) userTargets = parsed; // 簡單檢查
+                    if(parsed.cal > 500) userTargets = parsed;
                 }
                 const savedProfile = localStorage.getItem('userProfile');
                 if (savedProfile) {
@@ -201,7 +208,6 @@
                 if (liff.isLoggedIn()) {
                     const profile = await liff.getProfile();
                     currentUserId = profile.userId;
-                    // 更新 Debug 顯示
                     document.getElementById('debug-userid').innerText = currentUserId;
                     fetchData();
                 } else {
@@ -213,11 +219,10 @@
             }
         };
 
-        // 1. 讀取資料 (雙參數策略)
         async function fetchData() {
             showLoading(true);
             try {
-                // 【修正】：同時傳送 userId 和 user_id，確保 n8n 收到
+                // 維持雙參數邏輯，確保後端一定讀得到
                 const url = new URL(API_DASHBOARD);
                 url.searchParams.append('userId', currentUserId);
                 url.searchParams.append('user_id', currentUserId);
@@ -233,7 +238,7 @@
                 // 處理資料
                 if (data.logs) {
                     currentLogs = data.logs;
-                    if(data.targets && data.targets.cal > 100) { // 防呆
+                    if(data.targets && data.targets.cal > 100) {
                         userTargets = { ...userTargets, ...data.targets };
                         localStorage.setItem('userTargets', JSON.stringify(userTargets));
                     }
@@ -249,6 +254,11 @@
 
                 renderDashboard();
                 renderLogs();
+
+                // 【新增功能】如果是新用戶 (目標還是預設值 2000)，自動跳出設定
+                if (userTargets.cal === 2000) {
+                    setTimeout(() => toggleSettings(true), 500); // 稍微延遲一下讓畫面先出來
+                }
 
             } catch (error) {
                 console.error('Fetch Error:', error);
@@ -294,7 +304,7 @@
             const container = document.getElementById('log-content');
             container.innerHTML = ''; 
             if (currentLogs.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄</div>';
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄<br>請使用 LINE 機器人拍照</div>';
                 return;
             }
             const sortedLogs = [...currentLogs].reverse();
@@ -307,7 +317,7 @@
                 const id = item.id || item._id || item.log_id || item.row_number;
 
                 const html = `
-                    <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2">
+                    <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
                             <div class="bg-gray-100 p-2.5 rounded-xl text-xl">🍽️</div>
                             <div>
@@ -318,7 +328,7 @@
                                 </div>
                             </div>
                         </div>
-                        ${id ? `<button onclick="deleteItem('${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
+                        ${id ? `<button onclick="deleteItem('${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
                     </div>`;
                 container.insertAdjacentHTML('beforeend', html);
             });
@@ -326,17 +336,27 @@
 
         async function deleteItem(id, name) {
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
-            showLoading(true);
+            
+            // 【新增功能】樂觀 UI (Optimistic UI) - 先刪除畫面，再送請求
+            // 1. 本地立即刪除
+            currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+            // 2. 立即更新畫面 (不用轉圈圈)
+            renderDashboard(); 
+            renderLogs();
+
+            // 3. 背景發送請求
             try {
-                currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
-                renderDashboard(); renderLogs();
                 await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUserId, id: id })
                 });
-            } catch (error) { alert('連線錯誤'); fetchData(); } 
-            finally { showLoading(false); }
+                // 成功了，不做事，因為畫面已經更新了
+            } catch (error) { 
+                console.error('Delete Failed', error);
+                alert('刪除失敗，資料將還原');
+                fetchData(); // 失敗才重新抓取
+            } 
         }
 
         async function saveProfile() {
@@ -362,7 +382,7 @@
             toggleSettings(false);
             renderDashboard();
 
-            // 更新到 n8n (使用 POST)
+            // 維持 POST 邏輯不變
             try {
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
@@ -380,26 +400,6 @@
                 alert('已更新個人檔案！');
             } catch(e) { alert('儲存失敗 (但本機已更新)'); }
             finally { showLoading(false); }
-        }
-
-        async function handleImageUpload(event) {
-            // ...維持原樣，保留 POST 上傳圖片...
-            const file = event.target.files[0];
-            if (!file) return;
-            showLoading(true);
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = async () => {
-                try {
-                    await fetch(API_DASHBOARD, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId: currentUserId, image: reader.result, type: 'ADD_FOOD_IMAGE' })
-                    });
-                    alert('上傳成功');
-                } catch (e) { alert('上傳錯誤'); }
-                finally { showLoading(false); event.target.value = ''; }
-            };
         }
 
         function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
