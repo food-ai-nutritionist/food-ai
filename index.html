@@ -313,4 +313,218 @@
             const elVal = document.getElementById(`val-${type}`);
             const elGoal = document.getElementById(`goal-${type}`);
             const elPercent = document.getElementById(`percent-${type}`);
-            const elBar = document.getElementById(`bar-${
+            const elBar = document.getElementById(`bar-${type}`);
+
+            const safeTarget = target > 0 ? target : 1; 
+            const percent = Math.min(100, Math.round((current / safeTarget) * 100));
+
+            if(elVal) elVal.innerText = Math.round(current);
+            if(elGoal) elGoal.innerText = Math.round(target);
+            if(elPercent) elPercent.innerText = `${percent}%`;
+            if(elBar) elBar.style.width = `${percent}%`;
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = ''; 
+
+            if (!currentLogs || currentLogs.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄<br>請使用 LINE 機器人拍照</div>';
+                return;
+            }
+
+            const sortedLogs = [...currentLogs].reverse();
+
+            sortedLogs.forEach(item => {
+                const name = item.food_name || item.name || item['食物名稱'] || '未命名食物';
+                const cal = Math.round(item.calories || item.cal || item['熱量'] || 0);
+                const p = Math.round(item.protein || item.pro || 0);
+                const c = Math.round(item.carbs || item.carb || 0);
+                const f = Math.round(item.fat || 0);
+                const id = item.id || item._id || item.log_id || item.row_number;
+
+                const html = `
+                    <div class="flex justify-between items-center py-4 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors px-2 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-gray-100 p-2.5 rounded-xl text-xl shadow-sm">🍽️</div>
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">${name}</div>
+                                <div class="text-xs text-gray-500 mt-1 font-medium flex gap-2 items-center">
+                                    <span class="text-orange-500 font-bold bg-orange-50 px-1.5 py-0.5 rounded">${cal} kcal</span>
+                                    <span class="text-gray-300">|</span>
+                                    <span class="text-[10px]">C:${c} P:${p} F:${f}</span>
+                                </div>
+                            </div>
+                        </div>
+                        ${id ? `
+                        <button onclick="deleteItem('${id}', '${name}')" class="group p-2 rounded-full hover:bg-red-50 transition-colors">
+                            <svg class="w-5 h-5 text-gray-300 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>` : ''}
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        async function deleteItem(id, name) {
+            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+            
+            showLoading(true);
+            try {
+                currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+                renderDashboard();
+                renderLogs();
+
+                const response = await fetch(API_DELETE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentUserId, id: id })
+                });
+
+                if (!response.ok) {
+                    alert('刪除失敗');
+                    fetchData();
+                }
+            } catch (error) {
+                console.error('Delete Error:', error);
+                alert('連線錯誤');
+                fetchData();
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function toggleSettings(show) {
+            const modal = document.getElementById('settings-modal');
+            const content = modal.querySelector('.modal-content');
+            if (show) {
+                modal.classList.remove('hidden');
+                setTimeout(() => { content.classList.remove('translate-y-full'); }, 10);
+            } else {
+                content.classList.add('translate-y-full');
+                setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            }
+        }
+
+        function populateProfileForm(profile) {
+            if (profile.gender) document.getElementById('input-gender').value = profile.gender;
+            if (profile.age) document.getElementById('input-age').value = profile.age;
+            if (profile.height) document.getElementById('input-height').value = profile.height;
+            if (profile.weight) document.getElementById('input-weight').value = profile.weight;
+            if (profile.activity) document.getElementById('input-activity').value = profile.activity;
+            if (profile.goal) document.getElementById('input-goal').value = profile.goal;
+        }
+
+        // 2. 儲存設定 (改為 POST 扁平資料)
+        async function saveProfile() {
+            const gender = document.getElementById('input-gender').value;
+            const age = Number(document.getElementById('input-age').value);
+            const height = Number(document.getElementById('input-height').value);
+            const weight = Number(document.getElementById('input-weight').value);
+            const activity = Number(document.getElementById('input-activity').value);
+            const goal = Number(document.getElementById('input-goal').value); // 修正：抓取 value 數值
+
+            if (!age || !height || !weight) { alert('請填寫完整數值'); return; }
+
+            showLoading(true);
+
+            // 前端先算一次 TDEE 給使用者看
+            let bmr = (gender === 'male') ? (10*weight)+(6.25*height)-(5*age)+5 : (10*weight)+(6.25*height)-(5*age)-161;
+            let tdee = Math.round(bmr * activity * goal); // 乘上目標係數
+            
+            // 粗估營養素
+            const newTargets = {
+                cal: tdee,
+                pro: Math.round((tdee * 0.25) / 4),
+                carb: Math.round((tdee * 0.50) / 4),
+                fat: Math.round((tdee * 0.25) / 9)
+            };
+
+            // 更新本地
+            userTargets = newTargets;
+            userProfile = { gender, age, height, weight, activity, goal }; // 注意：這裡的 goal 是數值 (如 0.85)
+            localStorage.setItem('userTargets', JSON.stringify(userTargets));
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+
+            toggleSettings(false);
+            renderDashboard();
+
+            try {
+                // 【修正】：直接傳送資料，不包在 profile 物件裡，讓 n8n Webhook POST 直接讀取
+                await fetch(API_DASHBOARD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        // 傳送原始資料讓 n8n 計算
+                        gender: gender,
+                        age: age,
+                        height: height,
+                        weight: weight,
+                        activity_level: activity,
+                        goal: document.getElementById('input-goal').options[document.getElementById('input-goal').selectedIndex].text, // 傳送文字描述 (如 'lose') 可能比較符合你 sheet 的格式，若 n8n 處理數值則傳 goal
+                        
+                        // 也可以同時傳送前端算好的結果當備案
+                        tdee_goal: tdee,
+                        target_protein: newTargets.pro,
+                        target_carbs: newTargets.carb,
+                        target_fat: newTargets.fat
+                    })
+                });
+                alert(`已更新！目標熱量: ${tdee} kcal`);
+            } catch (err) {
+                console.error('Save Profile Error', err);
+                alert('儲存失敗');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 上傳圖片 (注意：若 n8n POST 沒有處理圖片邏輯，此功能可能無效)
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            showLoading(true);
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = async () => {
+                try {
+                    const response = await fetch(API_DASHBOARD, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: currentUserId,
+                            image: reader.result,
+                            type: 'ADD_FOOD_IMAGE'
+                        })
+                    });
+                    if (response.ok) { alert('上傳成功 (請確認 LINE 機器人是否已處理)'); fetchData(); }
+                    else { alert('上傳失敗'); }
+                } catch (error) { alert('上傳錯誤'); }
+                finally { showLoading(false); event.target.value = ''; }
+            };
+        }
+
+        function showLoading(show) {
+            const el = document.getElementById('loading-overlay');
+            if (show) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        }
+
+        function toggleLog() {
+            const c = document.getElementById('log-content');
+            const a = document.getElementById('log-arrow');
+            if (c.classList.contains('hidden')) {
+                c.classList.remove('hidden'); c.classList.add('block'); a.style.transform = 'rotate(0deg)';
+            } else {
+                c.classList.remove('block'); c.classList.add('hidden'); a.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        function debugInfo() {
+            if(lastApiData) alert("Debug:\n" + JSON.stringify(lastApiData, null, 2));
+            else alert("No Data");
+        }
+    </script>
+</body>
+</html>
