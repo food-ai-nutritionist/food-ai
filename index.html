@@ -146,8 +146,7 @@
             </div>
 
         </div>
-
-        </div>
+    </div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-40">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleSettings(false)"></div>
@@ -183,10 +182,10 @@
         let currentUserId = ''; 
         let currentLogs = [];
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
-        let userProfile = {};
+        let userProfile = {}; // 本地暫存個資
 
         window.onload = async function() {
-            // 本地緩存讀取
+            // 讀取本地緩存 (重要)
             try {
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
@@ -222,7 +221,6 @@
         async function fetchData() {
             showLoading(true);
             try {
-                // 【核心】維持雙參數邏輯，確保後端一定讀得到
                 const url = new URL(API_DASHBOARD);
                 url.searchParams.append('userId', currentUserId);
                 url.searchParams.append('user_id', currentUserId);
@@ -235,7 +233,6 @@
                 document.getElementById('debug-status').innerText = response.status;
                 const data = await response.json();
 
-                // 處理資料
                 if (data.logs) {
                     currentLogs = data.logs;
                     if(data.targets && data.targets.cal > 100) {
@@ -255,9 +252,12 @@
                 renderDashboard();
                 renderLogs();
 
-                // 【修正：新手判斷】只有當目標熱量完全是預設值 (2000) 時，代表後端沒資料，才跳出設定
-                // 老用戶 (只要有設定過，熱量通常不會剛好是 2000，且 localStorage 會有資料)
-                if (userTargets.cal === 2000) {
+                // 【修正：智慧判斷新手】
+                // 邏輯：目標是預設值(2000) AND 手機裡完全沒有儲存過個資(userProfile為空) => 判定為新用戶
+                const isDefaultTargets = userTargets.cal === 2000;
+                const hasLocalProfile = userProfile && userProfile.height > 0 && userProfile.weight > 0;
+
+                if (isDefaultTargets && !hasLocalProfile) {
                     setTimeout(() => toggleSettings(true), 500); 
                 }
 
@@ -338,27 +338,22 @@
         async function deleteItem(id, name) {
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            // 【修正：即時刪除 (Optimistic UI)】
-            // 1. 本地立即過濾掉該項目，不需等待 API
-            const originalLogs = [...currentLogs]; // 備份以防萬一
+            // 【修正：樂觀刪除】按下確定，立刻從畫面消失！
+            const originalLogs = [...currentLogs]; 
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             
-            // 2. 立即更新畫面 (這樣使用者就會看到東西馬上消失)
             renderDashboard(); 
             renderLogs();
 
-            // 3. 背景偷偷發送刪除請求
             try {
                 await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUserId, id: id })
                 });
-                // 成功則不做任何事，因為畫面已經是新的了
             } catch (error) { 
                 console.error('Delete Failed', error);
                 alert('連線失敗，資料將還原');
-                // 失敗時把資料救回來
                 currentLogs = originalLogs; 
                 renderDashboard();
                 renderLogs();
@@ -383,12 +378,15 @@
                 carb: Math.round((tdee * 0.50) / 4),
                 fat: Math.round((tdee * 0.25) / 9)
             };
+            
+            // 儲存到本地，標記此用戶已設定過 (下次就不會彈出)
+            userProfile = { gender, age, height, weight, activity };
             localStorage.setItem('userTargets', JSON.stringify(userTargets));
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
             
             toggleSettings(false);
             renderDashboard();
 
-            // 維持 POST 邏輯不變
             try {
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
