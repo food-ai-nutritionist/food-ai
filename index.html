@@ -29,15 +29,15 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-green-600 px-1 rounded ml-1">v10.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v11.0</span></span>
             </div>
             <div class="flex gap-3">
-                <button type="button" onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                <div onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                </button>
-                <button type="button" onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
+                </div>
+                <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                </button>
+                </div>
             </div>
         </div>
 
@@ -139,10 +139,9 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v10.0]</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v11.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>Status: <span id="debug-status">--</span></p>
-                <p>Last Action: <span id="debug-action" class="text-green-600">--</span></p>
             </div>
 
         </div>
@@ -153,9 +152,9 @@
         <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-bold text-gray-800">⚙️ 設定身體數值</h3>
-                <button type="button" onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                <div onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 cursor-pointer">
                     <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+                </div>
             </div>
             
             <div class="space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar pb-10">
@@ -184,13 +183,7 @@
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {}; 
 
-        function logAction(action) {
-            document.getElementById('debug-action').innerText = action;
-            console.log('Action:', action);
-        }
-
         window.onload = async function() {
-            logAction('Window Load');
             // 本地緩存讀取
             try {
                 const savedTargets = localStorage.getItem('userTargets');
@@ -224,8 +217,14 @@
         };
 
         async function fetchData(source) {
-            logAction('Fetch Data (' + source + ')');
-            showLoading(true);
+            // 【V11 防重整策略】如果剛剛才刪除過 (sessionStorage有標記)，就默默讀取，不要轉圈圈
+            const justDeleted = sessionStorage.getItem('justDeleted');
+            if (!justDeleted) {
+                showLoading(true);
+            } else {
+                sessionStorage.removeItem('justDeleted'); // 用完即丟
+            }
+
             try {
                 const url = new URL(API_DASHBOARD);
                 url.searchParams.append('userId', currentUserId);
@@ -256,10 +255,8 @@
                 renderDashboard();
                 renderLogs();
 
-                // 【智慧防擾】: 只要成功讀取過一次，就標記為「訪客」，不再跳出。
                 localStorage.setItem('hasVisited', 'true'); 
                 
-                // 只有「完全沒來過」的人才跳。
                 if (source === 'init' && userTargets.cal === 2000 && !localStorage.getItem('userTargets')) {
                     setTimeout(() => toggleSettings(true), 500); 
                 }
@@ -320,7 +317,7 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // 強制按鈕 type="button" 避免表單提交
+                // 【V11 關鍵修改】使用 div 代替 button，並加入 cursor-pointer，徹底防止表單提交
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
@@ -333,15 +330,14 @@
                                 </div>
                             </div>
                         </div>
-                        ${id ? `<button type="button" onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>` : ''}
+                        ${id ? `<div onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div>` : ''}
                     </div>`;
                 container.insertAdjacentHTML('beforeend', html);
             });
         }
 
-        // 【V10 核心：射後不理 + 防刷新】
         function deleteItem(event, id, name) {
-            // 1. 阻止事件冒泡與預設行為 (避免刷新)
+            // 防止點擊穿透
             if (event) {
                 event.stopPropagation();
                 event.preventDefault(); 
@@ -349,28 +345,23 @@
             
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            logAction('Delete Item (Optimistic)');
+            // 標記「我正在刪除」，萬一頁面重整，也不要顯示 Loading
+            sessionStorage.setItem('justDeleted', 'true');
             
-            // 2. 本地直接刪除 (這是使用者看到的)
+            // 本地直接刪除 (極速 UI)
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             renderDashboard(); 
             renderLogs();
 
-            // 3. 背景發送請求 (完全不等待，不轉圈，不回復)
-            // 使用 .then 而不是 await，確保主執行緒完全自由
+            // 背景刪除
             fetch(API_DELETE, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUserId, id: id })
-            }).then(() => {
-                console.log('Background Delete Success');
-            }).catch(e => {
-                console.error('Background Delete Error (Ignored)', e);
-            });
+            }).catch(e => console.error(e));
         }
 
         async function saveProfile() {
-            logAction('Save Profile');
             showLoading(true);
             const gender = document.getElementById('input-gender').value;
             const age = Number(document.getElementById('input-age').value);
@@ -424,7 +415,6 @@
             a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
         function toggleSettings(show) {
-            logAction('Toggle Settings');
             const m = document.getElementById('settings-modal');
             const c = m.querySelector('.modal-content');
             if(show) { m.classList.remove('hidden'); setTimeout(()=>c.classList.remove('translate-y-full'),10); }
