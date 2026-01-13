@@ -29,7 +29,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師</span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-gray-700 px-1 rounded ml-1">v8.0</span></span>
             </div>
             <div class="flex gap-3">
                 <button onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors">
@@ -139,7 +139,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v8.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>API Status: <span id="debug-status">--</span></p>
                 <p>Logs Count: <span id="debug-count">0</span></p>
@@ -190,7 +190,7 @@
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
                     const parsed = JSON.parse(savedTargets);
-                    if(parsed.cal > 500) userTargets = parsed;
+                    if(parsed.cal > 100) userTargets = parsed;
                 }
                 const savedProfile = localStorage.getItem('userProfile');
                 if (savedProfile) {
@@ -251,9 +251,7 @@
                 renderDashboard();
                 renderLogs();
 
-                // 【最終修正：智慧新手判斷】
-                // 邏輯：只有當「本地完全沒有個人資料(localStorage沒東西)」時，才跳出。
-                // 只要以前存過(localStorage有userProfile)，就算這次 API 回傳預設值(2000)，也絕對不跳出。
+                // 【智慧防擾】: 只有當手機裡完全沒紀錄 (localStorage 為空) 且 熱量是預設值時，才跳出。
                 const hasLocalProfile = localStorage.getItem('userProfile'); 
                 const isDefaultTargets = userTargets.cal === 2000;
 
@@ -338,24 +336,20 @@
         async function deleteItem(id, name) {
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            // 【最終修正：真·即時刪除 (True Optimistic UI)】
-            // 1. 這裡不呼叫 showLoading! 讓轉圈圈完全不出現
+            // 【極速刪除】不顯示 Loading，直接刪 DOM
             const originalLogs = [...currentLogs]; 
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             
             renderDashboard(); 
             renderLogs();
 
-            // 3. 背景偷偷刪除
             try {
                 await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUserId, id: id })
                 });
-                // 成功了什麼都不用做，畫面已經是最新的
             } catch (error) { 
-                console.error('Delete Failed', error);
                 alert('連線失敗，資料將還原');
                 currentLogs = originalLogs; 
                 renderDashboard();
@@ -382,7 +376,7 @@
                 fat: Math.round((tdee * 0.25) / 9)
             };
             
-            // 儲存到本地，這行非常關鍵，這是「我不是新用戶」的證明
+            // 存入本地，避免未來跳出
             userProfile = { gender, age, height, weight, activity };
             localStorage.setItem('userTargets', JSON.stringify(userTargets));
             localStorage.setItem('userProfile', JSON.stringify(userProfile));
