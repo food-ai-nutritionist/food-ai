@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 營養師 - 健康儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -30,7 +30,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-blue-600 px-1 rounded ml-1">v12.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-red-600 px-1 rounded ml-1">v12.1</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -168,7 +168,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v12.0]</p>
+                <p class="font-bold mb-1">🛠️ 除錯資訊 [v12.1]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
                 <p>Status: <span id="debug-status">--</span></p>
                 <p>Last Action: <span id="debug-action" class="text-blue-600">--</span></p>
@@ -228,8 +228,15 @@
         let userProfile = {};
         let weightChartInstance = null;
 
+        // 【V12.1 安全修正】全域錯誤攔截，防止當機
+        window.onerror = function(msg, url, line) {
+            console.error('JS Error:', msg);
+            // 不跳 Alert 擾民，除非是很嚴重的錯誤
+        };
+
         function logAction(action) {
-            document.getElementById('debug-action').innerText = action;
+            const el = document.getElementById('debug-action');
+            if(el) el.innerText = action;
             console.log('Action:', action);
         }
 
@@ -250,7 +257,8 @@
             } catch(e) { console.log('Cache Error'); }
             
             renderDashboard();
-            renderWeightChart([], 0); 
+            // 【V12.1 安全修正】用 Try-Catch 包裹圖表初始化
+            try { renderWeightChart([], 0); } catch(e) { console.warn('Chart init skipped'); }
 
             try {
                 await liff.init({ liffId: LIFF_ID });
@@ -303,7 +311,6 @@
                     currentLogs = [];
                 }
 
-                // V12: 處理體重歷史 (假設未來 API 會回傳，目前先用空陣列)
                 const history = data.weight_history || []; 
                 const targetW = data.target_weight || (userProfile.targetWeight || 0);
                 
@@ -335,7 +342,8 @@
                 if (chartData.length === 0 && userProfile.weight) {
                     chartData = [{ date: '今日', weight: userProfile.weight }];
                 }
-                renderWeightChart(chartData, targetW);
+                // 【V12.1 安全修正】避免圖表錯誤影響主程式
+                try { renderWeightChart(chartData, targetW); } catch(e) { console.warn('Chart render skipped'); }
                 
                 renderDashboard();
                 renderLogs();
@@ -356,8 +364,18 @@
             }
         }
 
+        // 【V12.1 安全修正】圖表渲染函數防呆機制
         function renderWeightChart(history, target) {
-            const ctx = document.getElementById('weightChart').getContext('2d');
+            // 如果 Chart 沒載入成功，直接跳過，不報錯
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js library not found');
+                return;
+            }
+            
+            const canvas = document.getElementById('weightChart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            
             if (weightChartInstance) weightChartInstance.destroy();
 
             const labels = history.map(h => h.date || 'Today');
@@ -422,4 +440,150 @@
         }
 
         function updateStat(type, current, target) {
-            const elVal = document.getElementById(`val-${
+            const elVal = document.getElementById(`val-${type}`);
+            const elGoal = document.getElementById(`goal-${type}`);
+            const elPercent = document.getElementById(`percent-${type}`);
+            const elBar = document.getElementById(`bar-${type}`);
+            const safeTarget = target > 0 ? target : 2000;
+            const percent = Math.min(100, Math.round((current / safeTarget) * 100));
+
+            if(elVal) elVal.innerText = Math.round(current);
+            if(elGoal) elGoal.innerText = Math.round(target);
+            if(elPercent) elPercent.innerText = `${percent}%`;
+            if(elBar) elBar.style.width = `${percent}%`;
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = ''; 
+            if (currentLogs.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄<br>請使用 LINE 機器人拍照</div>';
+                return;
+            }
+            const sortedLogs = [...currentLogs].reverse();
+            sortedLogs.forEach(item => {
+                const name = item.food_name || item.name || '未命名食物';
+                const cal = Math.round(item.calories || 0);
+                const p = Math.round(item.protein || 0);
+                const c = Math.round(item.carbs || 0);
+                const f = Math.round(item.fat || 0);
+                const id = item.id || item._id || item.log_id || item.row_number;
+
+                const html = `
+                    <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-gray-100 p-2.5 rounded-xl text-xl">🍽️</div>
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">${name}</div>
+                                <div class="text-xs text-gray-500 mt-1 flex gap-2">
+                                    <span class="text-orange-500 font-bold">${cal} kcal</span>
+                                    <span>C:${c} P:${p} F:${f}</span>
+                                </div>
+                            </div>
+                        </div>
+                        ${id ? `<div onclick="deleteItem(event, '${id}', '${name}')" class="text-gray-300 hover:text-red-500 p-2 transition-colors cursor-pointer"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></div>` : ''}
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function deleteItem(event, id, name) {
+            if (event) { event.stopPropagation(); event.preventDefault(); }
+            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+            sessionStorage.setItem('justDeleted', 'true');
+            currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+            renderDashboard(); 
+            renderLogs();
+            fetch(API_DELETE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, id: id })
+            }).catch(e => console.error(e));
+        }
+
+        async function saveProfile() {
+            logAction('Save Profile');
+            showLoading(true);
+            const gender = document.getElementById('input-gender').value;
+            const age = Number(document.getElementById('input-age').value);
+            const height = Number(document.getElementById('input-height').value);
+            const weight = Number(document.getElementById('input-weight').value);
+            const targetWeight = Number(document.getElementById('input-target-weight').value);
+            const activity = Number(document.getElementById('input-activity').value);
+            const goal = Number(document.getElementById('input-goal').value);
+            const bodyFat = Number(document.getElementById('input-bodyfat').value);
+
+            let bmr = (gender === 'male') ? (10*weight)+(6.25*height)-(5*age)+5 : (10*weight)+(6.25*height)-(5*age)-161;
+            let tdee = Math.round(bmr * activity * goal);
+            
+            userTargets = {
+                cal: tdee,
+                pro: Math.round((tdee * 0.25) / 4),
+                carb: Math.round((tdee * 0.50) / 4),
+                fat: Math.round((tdee * 0.25) / 9)
+            };
+            
+            userProfile = { gender, age, height, weight, activity, targetWeight, bodyFat };
+            localStorage.setItem('userTargets', JSON.stringify(userTargets));
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+            localStorage.setItem('hasVisited', 'true');
+            
+            toggleSettings(false);
+            renderDashboard();
+            
+            document.getElementById('weight-current').innerText = weight;
+            if(targetWeight) document.getElementById('weight-target').innerText = targetWeight;
+            try { renderWeightChart([{date:'更新後', weight: weight}], targetWeight); } catch(e){}
+
+            try {
+                await fetch(API_DASHBOARD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        gender, age, height, weight, activity_level: activity,
+                        goal: document.getElementById('input-goal').options[document.getElementById('input-goal').selectedIndex].text,
+                        target_weight: targetWeight,
+                        body_fat: bodyFat,
+                        tdee_goal: tdee,
+                        target_protein: userTargets.pro,
+                        target_carbs: userTargets.carb,
+                        target_fat: userTargets.fat
+                    })
+                });
+                alert('已更新個人檔案並記錄歷史！');
+            } catch(e) { alert('儲存失敗 (但本機已更新)'); }
+            finally { showLoading(false); }
+        }
+
+        function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
+        function toggleLog() { 
+            const c = document.getElementById('log-content');
+            const a = document.getElementById('log-arrow');
+            c.classList.toggle('hidden'); c.classList.toggle('block'); 
+            a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        function toggleSettings(show) {
+            logAction('Toggle Settings');
+            const m = document.getElementById('settings-modal');
+            const c = m.querySelector('.modal-content');
+            if(show) { 
+                m.classList.remove('hidden'); 
+                setTimeout(()=>c.classList.remove('translate-y-full'),10); 
+                if(userProfile.targetWeight) document.getElementById('input-target-weight').value = userProfile.targetWeight;
+                if(userProfile.bodyFat) document.getElementById('input-bodyfat').value = userProfile.bodyFat;
+            }
+            else { c.classList.add('translate-y-full'); setTimeout(()=>m.classList.add('hidden'),300); }
+        }
+        function populateProfileForm(p) {
+            if(p.gender) document.getElementById('input-gender').value = p.gender;
+            if(p.age) document.getElementById('input-age').value = p.age;
+            if(p.height) document.getElementById('input-height').value = p.height;
+            if(p.weight) document.getElementById('input-weight').value = p.weight;
+            if(p.activity) document.getElementById('input-activity').value = p.activity;
+            if(p.targetWeight) document.getElementById('input-target-weight').value = p.targetWeight;
+            if(p.bodyFat) document.getElementById('input-bodyfat').value = p.bodyFat;
+        }
+    </script>
+</body>
+</html>
