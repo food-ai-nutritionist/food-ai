@@ -22,15 +22,19 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
+        
+        /* Date Picker Styles */
+        .date-item.active { background-color: #000; color: #fff; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .date-item { transition: all 0.2s ease; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col items-center">
 
     <div class="w-full max-w-md bg-gray-50 h-full shadow-2xl flex flex-col relative overflow-y-auto no-scrollbar">
         
-        <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md">
+        <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-red-600 px-1 rounded ml-1">v12.1</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v13.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="toggleSettings(true)" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -42,6 +46,9 @@
             </div>
         </div>
 
+        <div id="date-nav-container" class="bg-white border-b border-gray-100 py-3 px-4 sticky top-[60px] z-10 overflow-x-auto no-scrollbar flex gap-3 shrink-0">
+            </div>
+
         <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 z-50 flex items-center justify-center backdrop-blur-sm">
             <div class="flex flex-col items-center">
                 <div class="loader mb-3 border-t-orange-500"></div>
@@ -49,11 +56,11 @@
             </div>
         </div>
 
-        <div class="p-4 space-y-4 pb-12">
+        <div class="p-4 space-y-4 pb-12 overflow-y-auto">
 
             <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
                 <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
-                    📊 今日攝取進度
+                    📊 <span id="display-date-title">今日</span>攝取進度
                 </h3>
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 relative overflow-hidden">
@@ -111,38 +118,10 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 relative overflow-hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">📉 體重里程碑</h3>
-                    <span id="goal-badge" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-bold">設定中</span>
-                </div>
-
-                <div class="flex justify-between items-end mb-4 px-1">
-                    <div>
-                        <div class="text-xs text-gray-400 mb-1">目前體重</div>
-                        <div class="text-3xl font-bold text-gray-800"><span id="weight-current">--</span> <span class="text-sm font-normal text-gray-500">kg</span></div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-xs text-gray-400 mb-1">目標: <span id="weight-target">--</span> kg</div>
-                        <div id="weight-gap-badge" class="text-sm font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
-                            設定目標以開始
-                        </div>
-                    </div>
-                </div>
-
-                <div class="h-48 w-full">
-                    <canvas id="weightChart"></canvas>
-                </div>
-                
-                <div class="mt-2 text-center text-xs text-gray-300">
-                    * 每次更新身體數值時會自動記錄點位
-                </div>
-            </div>
-
             <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
                 <div onclick="toggleLog()" class="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors select-none">
                     <h3 class="font-bold text-gray-500 text-sm tracking-widest uppercase flex items-center gap-2">
-                        📅 本日攝取明細
+                        📅 攝取明細
                     </h3>
                     <svg id="log-arrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -154,7 +133,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div onclick="toggleSettings(true)" class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors select-none">
                 <div class="p-5 flex justify-between items-center">
                     <h3 class="font-bold text-gray-500 text-sm tracking-widest uppercase flex items-center gap-2">
@@ -167,11 +146,55 @@
                 </div>
             </div>
 
-            <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all">
-                <p class="font-bold mb-1">🛠️ 除錯資訊 [v12.1]</p>
-                <p>User ID: <span id="debug-userid" class="text-blue-600">偵測中...</span></p>
-                <p>Status: <span id="debug-status">--</span></p>
-                <p>Last Action: <span id="debug-action" class="text-blue-600">--</span></p>
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div onclick="toggleWeight()" class="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors select-none">
+                    <div class="flex flex-col">
+                        <h3 class="font-bold text-gray-800 text-sm tracking-widest uppercase flex items-center gap-2">
+                            📉 體重里程碑
+                        </h3>
+                        <div class="text-xs text-gray-400 mt-1">
+                            目前 <span id="weight-current-summary" class="font-bold text-gray-600">--</span> kg
+                        </div>
+                    </div>
+                    <svg id="weight-arrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+                
+                <div id="weight-content" class="px-5 pb-5 hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <span id="goal-badge" class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-bold">設定中</span>
+                        <div class="text-right">
+                            <div class="text-xs text-gray-400 mb-1">目標: <span id="weight-target">--</span> kg</div>
+                            <div id="weight-gap-badge" class="text-sm font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded-lg">
+                                設定目標以開始
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="hidden"><span id="weight-current">--</span></div>
+
+                    <div class="h-48 w-full">
+                        <canvas id="weightChart"></canvas>
+                    </div>
+                    
+                    <div class="mt-2 text-center text-xs text-gray-300">
+                        * 每次更新身體數值時會自動記錄點位
+                    </div>
+
+                    <div class="mt-4 flex justify-end">
+                        <button onclick="shareAchievement()" class="bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold py-2 px-4 rounded-full shadow-lg flex items-center gap-2 transform active:scale-95 transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                            炫耀一下
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
+                <p class="font-bold mb-1">🛠️ Debug Info [v13.0]</p>
+                <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
+                <p>Selected Date: <span id="debug-date" class="text-green-600">Today</span></p>
             </div>
 
         </div>
@@ -196,22 +219,17 @@
                     <label class="block"><span class="text-sm font-bold">身高 (cm)</span><input type="number" id="input-height" class="mt-1 block w-full rounded-xl border p-3" value="175"></label>
                     <label class="block"><span class="text-sm font-bold">體重 (kg)</span><input type="number" id="input-weight" class="mt-1 block w-full rounded-xl border p-3" value="70"></label>
                 </div>
-                
                 <div class="p-4 bg-green-50 rounded-xl border border-green-100">
                     <label class="block"><span class="text-sm font-bold text-green-800">🎯 目標體重 (kg)</span><input type="number" id="input-target-weight" class="mt-1 block w-full rounded-xl border border-green-200 p-3" placeholder="例如: 65"></label>
                 </div>
-                
                 <label class="block"><span class="text-sm font-bold">體脂率 % (選填)</span><input type="number" id="input-bodyfat" class="mt-1 block w-full rounded-xl border p-3" placeholder="例如: 20"></label>
-
                 <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3">
                     <option value="1.2">幾乎不運動 (辦公室族)</option>
                     <option value="1.375">輕度 (每週運動 1-3 天)</option>
                     <option value="1.55">中度 (每週運動 3-5 天)</option>
                     <option value="1.725">高度 (每週運動 6-7 天)</option>
                 </select></label>
-                
                 <label class="block"><span class="text-sm font-bold">目標</span><select id="input-goal" class="mt-1 block w-full rounded-xl border p-3"><option value="0.85">減脂</option><option value="1.0" selected>維持</option><option value="1.10">增肌</option></select></label>
-                
                 <button type="button" onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
             </div>
         </div>
@@ -227,22 +245,18 @@
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {};
         let weightChartInstance = null;
+        
+        // [V13.0 New Feature] Date Control Variables
+        let currentDate = new Date();
+        let selectedDateStr = formatDate(currentDate);
 
-        // 【V12.1 安全修正】全域錯誤攔截，防止當機
-        window.onerror = function(msg, url, line) {
-            console.error('JS Error:', msg);
-            // 不跳 Alert 擾民，除非是很嚴重的錯誤
-        };
-
-        function logAction(action) {
-            const el = document.getElementById('debug-action');
-            if(el) el.innerText = action;
-            console.log('Action:', action);
-        }
+        window.onerror = function(msg, url, line) { console.error('JS Error:', msg); };
 
         window.onload = async function() {
-            logAction('Window Load');
-            // 本地緩存讀取
+            // Initialize Date Picker
+            renderDateNav();
+            
+            // Load Local Cache
             try {
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
@@ -254,11 +268,10 @@
                     userProfile = JSON.parse(savedProfile);
                     populateProfileForm(userProfile);
                 }
-            } catch(e) { console.log('Cache Error'); }
+            } catch(e) {}
             
             renderDashboard();
-            // 【V12.1 安全修正】用 Try-Catch 包裹圖表初始化
-            try { renderWeightChart([], 0); } catch(e) { console.warn('Chart init skipped'); }
+            try { renderWeightChart([], 0); } catch(e) {}
 
             try {
                 await liff.init({ liffId: LIFF_ID });
@@ -270,43 +283,75 @@
                 } else {
                     liff.login();
                 }
-            } catch (err) {
-                document.getElementById('debug-userid').innerText = 'LIFF Init Failed';
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         };
 
-        async function fetchData(source) {
-            const justDeleted = sessionStorage.getItem('justDeleted');
-            if (!justDeleted) {
-                showLoading(true);
-            } else {
-                sessionStorage.removeItem('justDeleted'); 
-            }
+        // [V13.0] Date Formatting Utility (YYYY-MM-DD)
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
+        // [V13.0] Render Date Navigation Bar
+        function renderDateNav() {
+            const container = document.getElementById('date-nav-container');
+            container.innerHTML = '';
+            
+            // Generate +/- 3 days
+            for (let i = -3; i <= 3; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() + i);
+                const dateStr = formatDate(d);
+                const isSelected = dateStr === selectedDateStr;
+                const dayNum = d.getDate();
+                const weekDays = ['週日','週一','週二','週三','週四','週五','週六'];
+                const weekDay = weekDays[d.getDay()];
+                
+                const div = document.createElement('div');
+                div.className = `date-item flex flex-col items-center justify-center min-w-[50px] h-[60px] rounded-xl cursor-pointer ${isSelected ? 'active' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`;
+                div.onclick = () => switchDate(d);
+                div.innerHTML = `
+                    <span class="text-[10px] font-bold">${weekDay}</span>
+                    <span class="text-xl font-bold leading-tight">${dayNum}</span>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        // [V13.0] Handle Date Switch
+        function switchDate(date) {
+            currentDate = date;
+            selectedDateStr = formatDate(date);
+            renderDateNav();
+            document.getElementById('display-date-title').innerText = isToday(date) ? '今日' : `${date.getMonth()+1}/${date.getDate()}`;
+            document.getElementById('debug-date').innerText = selectedDateStr;
+            fetchData('date_change');
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() && date.getMonth() === today.getMonth();
+        }
+
+        async function fetchData(source) {
+            showLoading(true);
             try {
                 const url = new URL(API_DASHBOARD);
                 url.searchParams.append('userId', currentUserId);
                 url.searchParams.append('user_id', currentUserId);
+                // [V13.0] Send date parameter to backend
+                url.searchParams.append('date', selectedDateStr);
 
-                const response = await fetch(url, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
-                document.getElementById('debug-status').innerText = response.status;
+                const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
                 const data = await response.json();
 
                 if (data.logs) {
                     currentLogs = data.logs;
                     if(data.targets && data.targets.cal > 100) {
                         userTargets = { ...userTargets, ...data.targets };
-                        localStorage.setItem('userTargets', JSON.stringify(userTargets));
                     }
-                } else if (Array.isArray(data)) {
-                    currentLogs = data;
-                } else if (data.data && Array.isArray(data.data)) {
-                    currentLogs = data.data;
                 } else {
                     currentLogs = [];
                 }
@@ -314,9 +359,11 @@
                 const history = data.weight_history || []; 
                 const targetW = data.target_weight || (userProfile.targetWeight || 0);
                 
+                // Update Weight Summary in Collapsible Header
                 if (userProfile.weight) {
-                    document.getElementById('weight-current').innerText = userProfile.weight;
-                    if (history.length > 0) document.getElementById('weight-current').innerText = history[history.length - 1].weight;
+                    const w = (history.length > 0) ? history[history.length - 1].weight : userProfile.weight;
+                    document.getElementById('weight-current').innerText = w;
+                    document.getElementById('weight-current-summary').innerText = w; // V13 Summary Update
                 }
                 
                 if (targetW > 0) {
@@ -326,15 +373,15 @@
                     const gapEl = document.getElementById('weight-gap-badge');
                     
                     if (gap > 0) {
-                        gapEl.innerText = `距離目標還有 -${gap} kg`;
+                        gapEl.innerText = `距離目標 -${gap} kg`;
                         gapEl.className = "text-sm font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg";
                         document.getElementById('goal-badge').innerText = "減脂中";
                     } else if (gap < 0) {
-                        gapEl.innerText = `距離目標還有 +${Math.abs(gap)} kg`;
+                        gapEl.innerText = `距離目標 +${Math.abs(gap)} kg`;
                         gapEl.className = "text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg";
                         document.getElementById('goal-badge').innerText = "增肌中";
                     } else {
-                        gapEl.innerText = `🎉 已達成目標！`;
+                        gapEl.innerText = `🎉 已達成！`;
                     }
                 }
 
@@ -342,40 +389,24 @@
                 if (chartData.length === 0 && userProfile.weight) {
                     chartData = [{ date: '今日', weight: userProfile.weight }];
                 }
-                // 【V12.1 安全修正】避免圖表錯誤影響主程式
-                try { renderWeightChart(chartData, targetW); } catch(e) { console.warn('Chart render skipped'); }
+                try { renderWeightChart(chartData, targetW); } catch(e){}
                 
                 renderDashboard();
                 renderLogs();
 
-                localStorage.setItem('hasVisited', 'true'); 
-                
-                if (source === 'init' && userTargets.cal === 2000 && !localStorage.getItem('userTargets')) {
-                    setTimeout(() => toggleSettings(true), 500); 
-                }
-
             } catch (error) {
-                console.error('Fetch Error:', error);
-                document.getElementById('log-content').innerHTML = 
-                    '<div class="text-center text-red-400 text-sm py-4">連線錯誤，請查看下方除錯資訊</div>';
-                document.getElementById('debug-status').innerText = 'Error';
+                console.error(error);
+                document.getElementById('log-content').innerHTML = '<div class="text-center text-red-400 text-sm py-4">連線錯誤</div>';
             } finally {
                 showLoading(false);
             }
         }
 
-        // 【V12.1 安全修正】圖表渲染函數防呆機制
         function renderWeightChart(history, target) {
-            // 如果 Chart 沒載入成功，直接跳過，不報錯
-            if (typeof Chart === 'undefined') {
-                console.warn('Chart.js library not found');
-                return;
-            }
-            
+            if (typeof Chart === 'undefined') return;
             const canvas = document.getElementById('weightChart');
             if(!canvas) return;
             const ctx = canvas.getContext('2d');
-            
             if (weightChartInstance) weightChartInstance.destroy();
 
             const labels = history.map(h => h.date || 'Today');
@@ -457,7 +488,7 @@
             const container = document.getElementById('log-content');
             container.innerHTML = ''; 
             if (currentLogs.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">目前沒有紀錄<br>請使用 LINE 機器人拍照</div>';
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">無紀錄</div>';
                 return;
             }
             const sortedLogs = [...currentLogs].reverse();
@@ -502,7 +533,6 @@
         }
 
         async function saveProfile() {
-            logAction('Save Profile');
             showLoading(true);
             const gender = document.getElementById('input-gender').value;
             const age = Number(document.getElementById('input-age').value);
@@ -531,10 +561,6 @@
             toggleSettings(false);
             renderDashboard();
             
-            document.getElementById('weight-current').innerText = weight;
-            if(targetWeight) document.getElementById('weight-target').innerText = targetWeight;
-            try { renderWeightChart([{date:'更新後', weight: weight}], targetWeight); } catch(e){}
-
             try {
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
@@ -551,9 +577,25 @@
                         target_fat: userTargets.fat
                     })
                 });
-                alert('已更新個人檔案並記錄歷史！');
-            } catch(e) { alert('儲存失敗 (但本機已更新)'); }
+                alert('已更新！');
+            } catch(e) { alert('儲存失敗'); }
             finally { showLoading(false); }
+        }
+
+        async function shareAchievement() {
+            if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
+            const currentW = document.getElementById('weight-current').innerText;
+            const targetW = document.getElementById('weight-target').innerText;
+            const flexMessage = {
+                type: "flex", altText: "🔥 減重戰報",
+                contents: {
+                    "type": "bubble", "size": "kilo",
+                    "header": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": "🏆 減重成就解鎖", "weight": "bold", "color": "#ffffff", "size": "lg" }], "backgroundColor": "#FF6B6B", "paddingAll": "20px" },
+                    "hero": { "type": "box", "layout": "vertical", "contents": [{ "type": "text", "text": currentW, "size": "5xl", "weight": "bold", "color": "#333333", "align": "center" }, { "type": "text", "text": "目前體重 (kg)", "size": "xs", "color": "#aaaaaa", "align": "center", "margin": "sm" }], "paddingTop": "40px", "paddingBottom": "20px" },
+                    "footer": { "type": "box", "layout": "vertical", "contents": [{ "type": "button", "action": { "type": "uri", "label": "我也要加入", "uri": "https://line.me/R/ti/p/@您的ID" }, "style": "primary" }], "paddingAll": "20px" }
+                }
+            };
+            try { await liff.shareTargetPicker([flexMessage]); } catch (e) { alert('分享失敗'); }
         }
 
         function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
@@ -561,28 +603,29 @@
             const c = document.getElementById('log-content');
             const a = document.getElementById('log-arrow');
             c.classList.toggle('hidden'); c.classList.toggle('block'); 
-            a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
+            a.style.transform = c.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
         }
         function toggleSettings(show) {
-            logAction('Toggle Settings');
             const m = document.getElementById('settings-modal');
             const c = m.querySelector('.modal-content');
-            if(show) { 
-                m.classList.remove('hidden'); 
-                setTimeout(()=>c.classList.remove('translate-y-full'),10); 
-                if(userProfile.targetWeight) document.getElementById('input-target-weight').value = userProfile.targetWeight;
-                if(userProfile.bodyFat) document.getElementById('input-bodyfat').value = userProfile.bodyFat;
-            }
+            if(show) { m.classList.remove('hidden'); setTimeout(()=>c.classList.remove('translate-y-full'),10); if(userProfile.targetWeight) document.getElementById('input-target-weight').value = userProfile.targetWeight; if(userProfile.bodyFat) document.getElementById('input-bodyfat').value = userProfile.bodyFat;}
             else { c.classList.add('translate-y-full'); setTimeout(()=>m.classList.add('hidden'),300); }
         }
-        function populateProfileForm(p) {
-            if(p.gender) document.getElementById('input-gender').value = p.gender;
-            if(p.age) document.getElementById('input-age').value = p.age;
-            if(p.height) document.getElementById('input-height').value = p.height;
-            if(p.weight) document.getElementById('input-weight').value = p.weight;
-            if(p.activity) document.getElementById('input-activity').value = p.activity;
-            if(p.targetWeight) document.getElementById('input-target-weight').value = p.targetWeight;
-            if(p.bodyFat) document.getElementById('input-bodyfat').value = p.bodyFat;
+        
+        // [V13.0] Toggle Weight Section Accordion
+        function toggleWeight() {
+            const c = document.getElementById('weight-content');
+            const a = document.getElementById('weight-arrow');
+            const isHidden = c.classList.contains('hidden');
+            if (isHidden) {
+                c.classList.remove('hidden');
+                c.classList.add('block');
+                a.style.transform = 'rotate(0deg)';
+            } else {
+                c.classList.add('hidden');
+                c.classList.remove('block');
+                a.style.transform = 'rotate(-90deg)';
+            }
         }
     </script>
 </body>
