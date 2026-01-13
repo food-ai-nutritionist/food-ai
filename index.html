@@ -320,6 +320,7 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
+                // V13.0 使用相容性高的參數傳遞
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg">
                         <div class="flex items-center gap-3">
@@ -348,31 +349,34 @@
 
             let id = arg1;
             let name = arg2;
-            if (typeof arg1 === 'object') { } // 兼容性防呆
+            if (typeof arg1 === 'object') {
+                // 如果 arg1 是事件物件，那參數應該往後挪，這行是相容舊版快取的
+                // 但因為上方 HTML 已經寫死傳遞順序，這裡主要是防呆
+            }
 
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
             logAction('Delete: ' + name);
             
-            // 1. 顯示 Loading (告訴使用者正在處理)
+            // 1. 顯示 Loading (告訴使用者正在處理，請稍等)
             showLoading(true);
 
             try {
-                // 2. 呼叫刪除 API 並等待完成
+                // 2. 呼叫刪除 API 並等待完成 (Await)
                 await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUserId, id: id })
                 });
 
-                // 3. 自動重新抓取最新資料 (Auto Refresh)
-                // 這會自動更新 currentLogs 並重繪畫面，不需要手動按重整
-                await fetchData('auto_refresh_after_delete');
+                // 3. 刪除成功後，自動重新抓取最新資料 (Auto Refresh)
+                await fetchData('auto_refresh'); 
+                // 注意：fetchData 裡面會負責關閉 Loading
 
             } catch (error) { 
                 console.error('Delete Failed', error);
                 alert('刪除失敗，請檢查網路');
-                showLoading(false); // 失敗才手動關掉，成功的話 fetchData 會負責關
+                showLoading(false); 
             } 
         }
 
