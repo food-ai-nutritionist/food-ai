@@ -182,10 +182,10 @@
         let currentUserId = ''; 
         let currentLogs = [];
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
-        let userProfile = {}; // 本地暫存個資
+        let userProfile = {}; 
 
         window.onload = async function() {
-            // 讀取本地緩存 (重要)
+            // 本地緩存讀取
             try {
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
@@ -201,7 +201,6 @@
             
             renderDashboard();
 
-            // LIFF Init
             try {
                 await liff.init({ liffId: LIFF_ID });
                 if (liff.isLoggedIn()) {
@@ -213,7 +212,7 @@
                     liff.login();
                 }
             } catch (err) {
-                document.getElementById('debug-userid').innerText = 'LIFF Init Failed (PC Mode?)';
+                document.getElementById('debug-userid').innerText = 'LIFF Init Failed';
                 console.error(err);
             }
         };
@@ -252,10 +251,11 @@
                 renderDashboard();
                 renderLogs();
 
-                // 【修正：智慧判斷新手】
-                // 邏輯：目標是預設值(2000) AND 手機裡完全沒有儲存過個資(userProfile為空) => 判定為新用戶
+                // 【最終修正：智慧新手判斷】
+                // 邏輯：只有當「本地完全沒有個人資料(localStorage沒東西)」時，才跳出。
+                // 只要以前存過(localStorage有userProfile)，就算這次 API 回傳預設值(2000)，也絕對不跳出。
+                const hasLocalProfile = localStorage.getItem('userProfile'); 
                 const isDefaultTargets = userTargets.cal === 2000;
-                const hasLocalProfile = userProfile && userProfile.height > 0 && userProfile.weight > 0;
 
                 if (isDefaultTargets && !hasLocalProfile) {
                     setTimeout(() => toggleSettings(true), 500); 
@@ -338,19 +338,22 @@
         async function deleteItem(id, name) {
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            // 【修正：樂觀刪除】按下確定，立刻從畫面消失！
+            // 【最終修正：真·即時刪除 (True Optimistic UI)】
+            // 1. 這裡不呼叫 showLoading! 讓轉圈圈完全不出現
             const originalLogs = [...currentLogs]; 
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             
             renderDashboard(); 
             renderLogs();
 
+            // 3. 背景偷偷刪除
             try {
                 await fetch(API_DELETE, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: currentUserId, id: id })
                 });
+                // 成功了什麼都不用做，畫面已經是最新的
             } catch (error) { 
                 console.error('Delete Failed', error);
                 alert('連線失敗，資料將還原');
@@ -379,7 +382,7 @@
                 fat: Math.round((tdee * 0.25) / 9)
             };
             
-            // 儲存到本地，標記此用戶已設定過 (下次就不會彈出)
+            // 儲存到本地，這行非常關鍵，這是「我不是新用戶」的證明
             userProfile = { gender, age, height, weight, activity };
             localStorage.setItem('userTargets', JSON.stringify(userTargets));
             localStorage.setItem('userProfile', JSON.stringify(userProfile));
