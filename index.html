@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v17.2</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v1.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -114,7 +114,7 @@
             </div>
             
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v17.2]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v1.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -177,7 +177,7 @@
         const LIFF_ID = '2008846678-Niw8fld9';
         const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
         
-        // 🔥 您的官方帳號 ID (已植入)
+        // 正式版導流 Bot ID
         const LINE_BOT_ID = '@398jjbps'; 
 
         let currentUserId = ''; let currentLogs = [];
@@ -259,7 +259,7 @@
         }
 
         // ========================
-        // [v17.2] 完整導流版：RPG + CTA -> Bot
+        // [v1.0 Official] RPG 稱號 + 導流分享
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -366,7 +366,6 @@
                             "footer": {
                                 "type": "box", "layout": "vertical",
                                 "contents": [
-                                    // [Update] 使用您的 Bot ID 進行導流
                                     { "type": "button", "style": "primary", "color": "#000000", "action": { "type": "uri", "label": "我也要測測看", "uri": `https://line.me/R/ti/p/${LINE_BOT_ID}` } }
                                 ],
                                 "paddingAll": "20px"
