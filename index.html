@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v19.1</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v20.0 Pro</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -119,7 +119,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1"> 🛠️ Debug Info [v19.1]</p>
+                <p class="font-bold mb-1"> 🛠️ Debug Info [v20.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -269,7 +269,7 @@
         }
 
         // ========================
-        // [Feature 1] 一般戰報 (給朋友) - 含 Alert
+        // [Feature 1] 一般戰報 (給朋友) - 修復版 (降級 giga/4xl)
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -301,6 +301,7 @@
                 score = Math.round(Math.min(100, score));
                 if(isNaN(score)) score = 0;
 
+                // RPG 稱號邏輯
                 let rpgTitle = " 🌱 健康初心者"; let titleColor = "#555555";
                 if (score >= 90) { rpgTitle = " 👑 傳說中的飲食大師"; titleColor = "#EAB308"; }
                 else if (t.pro > gPro * 1.2) { rpgTitle = " ⚔️ 肌肉狂戰士"; titleColor = "#3B82F6"; }
@@ -322,7 +323,7 @@
                     altText: ` 📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
                     contents: {
                         "type": "bubble",
-                        "size": "mega", // docx 使用 mega，保持原樣
+                        "size": "giga", // 修正: 改為 giga (原 mega 可能導致失敗)
                         "header": {
                             "type": "box", "layout": "horizontal",
                             "contents": [
@@ -333,7 +334,7 @@
                         "hero": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": String(score), "size": "5xl", "weight": "bold", "color": color, "align": "center" }, // docx 使用 5xl，保持原樣
+                                { "type": "text", "text": String(score), "size": "4xl", "weight": "bold", "color": color, "align": "center" }, // 修正: 改為 4xl
                                 { "type": "text", "text": `${rank}級 - ${text}`, "size": "xl", "weight": "bold", "color": "#555555", "align": "center", "margin": "md" }
                             ], "paddingBottom": "20px"
                         },
@@ -377,7 +378,7 @@
         }
 
         // ========================
-        // [Feature 2] 專業教練報告 (超詳盡版) - 含 Alert
+        // [Feature 2] 專業教練報告 (B2B 詳盡版)
         // ========================
         async function shareCoachReport() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -397,20 +398,20 @@
                     const f = safeNum(item.fat || item.fat);
                     t.cal += cal; t.pro += p; t.carb += c; t.fat += f;
                     
-                    if (index < 12) { // 最多顯示12筆避免過長
+                    if (index < 15) { // 顯示更多筆數
                         const fname = (item.food_name || '餐點').substring(0, 15);
                         detailRows.push({
                             type: "box", layout: "vertical", margin: "sm",
                             contents: [
                                 { type: "text", text: `• ${fname}`, size: "xs", color: "#333333", weight: "bold" },
-                                { type: "text", text: `   熱量:${Math.round(cal)} P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
+                                { type: "text", text: `   熱量:${Math.round(cal)} | P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
                             ]
                         });
                     }
                 });
                 if(currentLogs.length === 0) detailRows.push({ type: "text", text: "本日無紀錄", size: "xs", color: "#aaaaaa" });
                 
-                // 2. 準備目標數值 & 個人數據 (需重新計算 BMR/TDEE)
+                // 2. 準備目標數值 (重新計算 BMR/TDEE 以確保準確)
                 const w = safeNum(userProfile.weight) || 0;
                 const h = safeNum(userProfile.height) || 0;
                 const a = safeNum(userProfile.age) || 0;
@@ -445,7 +446,7 @@
                     altText: `📋 專業飲食週報 ${uName}`,
                     contents: {
                         "type": "bubble",
-                        "size": "mega",
+                        "size": "giga", // 使用 giga 確保發送成功
                         "header": {
                             "type": "box", "layout": "vertical",
                             "contents": [
@@ -461,7 +462,7 @@
                         "body": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                // Block 1: 身體數值
+                                // Block 1: 身體數值 (TDEE / BMR / 體重)
                                 { "type": "text", "text": "基本數值", "weight": "bold", "size": "sm", "color": "#333333" },
                                 { "type": "box", "layout": "horizontal", "margin": "sm", "contents": [
                                     { "type": "box", "layout": "vertical", "contents": [
@@ -479,7 +480,7 @@
                                 ]},
                                 { "type": "separator", "margin": "lg" },
 
-                                // Block 2: 營養攝取進度
+                                // Block 2: 營養攝取進度 (四項)
                                 { "type": "text", "text": "營養攝取進度", "weight": "bold", "size": "sm", "color": "#333333", "margin": "lg" },
                                 createProgressRow("🔥 熱量", t.cal, gCal, "#F97316"),
                                 createProgressRow("🥚 蛋白質", t.pro, gPro, "#3B82F6"),
