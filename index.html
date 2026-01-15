@@ -21,8 +21,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
-        
-        /* Date Picker Styles */
         .date-item.active { background-color: #000; color: #fff; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .date-item { transition: all 0.2s ease; }
     </style>
@@ -33,12 +31,9 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v14.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v15.0</span></span>
             </div>
             <div class="flex gap-3">
-                <div onclick="openFoodModal('add')" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors cursor-pointer flex items-center justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                </div>
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </div>
@@ -71,17 +66,14 @@
                     <div>
                         <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">TDEE</div>
                         <div class="font-bold text-xl text-gray-800" id="disp-tdee">--</div>
-                        <div class="text-[10px] text-gray-300">kcal</div>
                     </div>
                     <div>
                         <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">BMR</div>
                         <div class="font-bold text-xl text-gray-800" id="disp-bmr">--</div>
-                        <div class="text-[10px] text-gray-300">kcal</div>
                     </div>
                     <div>
                         <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">體重</div>
                         <div class="font-bold text-xl text-gray-800" id="disp-weight">--</div>
-                        <div class="text-[10px] text-gray-300">kg</div>
                     </div>
                 </div>
             </div>
@@ -147,14 +139,22 @@
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-                <div onclick="toggleLog()" class="p-5 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors select-none">
-                    <h3 class="font-bold text-gray-500 text-sm tracking-widest uppercase flex items-center gap-2">
+                <div class="p-5 flex justify-between items-center border-b border-gray-100 bg-gray-50">
+                    <h3 class="font-bold text-gray-600 text-sm tracking-widest uppercase flex items-center gap-2">
                         📅 攝取明細
                     </h3>
-                    <svg id="log-arrow" class="w-5 h-5 text-gray-400 transform transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="openFoodModal('add')" class="text-xs bg-black text-white px-3 py-1.5 rounded-lg font-bold hover:bg-gray-800 active:scale-95 transition-all flex items-center gap-1 shadow-sm">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        新增
+                    </button>
+                </div>
+                
+                <div onclick="toggleLog()" class="px-5 py-2 flex justify-center cursor-pointer hover:bg-gray-50">
+                    <svg id="log-arrow" class="w-5 h-5 text-gray-300 transform transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </div>
+
                 <div id="log-content" class="px-5 pb-5 block space-y-3">
                     <div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
                         載入中...
@@ -163,7 +163,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v14.0]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v15.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
 
@@ -235,20 +235,15 @@
 
     <script>
         const LIFF_ID = '2008846678-Niw8fld9';
-        // 統一使用此 Webhook 進行所有資料操作 (GET/POST)
+        // 請確保這個 URL 指向您的「Dashboard」Webhook
         const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
-        
-        // 為了相容性，刪除操作仍可指向原 Webhook，或統一指向 API_DASHBOARD 
-        // 根據需求使用 action 參數區分，建議後端統一處理，這裡先保留 delete 特化以防後端未改
-        const API_DELETE = 'https://evann8n.app.n8n.cloud/webhook/delete-food';
 
         let currentUserId = ''; 
         let currentLogs = [];
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
         let userProfile = {};
-        let currentEditingMode = 'add'; // 'add' or 'edit'
+        let currentEditingMode = 'add'; 
         
-        // Date Control Variables
         let currentDate = new Date();
         let selectedDateStr = formatDate(currentDate);
 
@@ -256,8 +251,6 @@
 
         window.onload = async function() {
             renderDateNav();
-            
-            // Load Local Cache
             try {
                 const savedTargets = localStorage.getItem('userTargets');
                 if (savedTargets) {
@@ -268,7 +261,7 @@
                 if (savedProfile) {
                     userProfile = JSON.parse(savedProfile);
                     populateProfileForm(userProfile);
-                    updateStatsCard(); // Update the new stats card
+                    updateStatsCard();
                 }
             } catch(e) {}
             
@@ -351,10 +344,8 @@
                     currentLogs = [];
                 }
                 
-                // Refresh Profile Data if backend returns it
                 if (data.profile) {
-                    // Assuming backend might return profile, safe to update if exists
-                    // For now, we rely on localStorage or manual setting mainly
+                   // Optional: update local userProfile if backend returns it
                 }
 
                 renderDashboard();
@@ -383,7 +374,6 @@
             updateStat('carb', totals.carb, userTargets.carb);
             updateStat('fat', totals.fat, userTargets.fat);
             
-            // Also update the Stats Card values from cache/targets
             updateStatsCard();
         }
 
@@ -402,12 +392,8 @@
         }
         
         function updateStatsCard() {
-            // Update the Personal Stats Card
             document.getElementById('disp-tdee').innerText = Math.round(userTargets.cal || 0);
             
-            // Calculate BMR for display if possible, or retrieve
-            // Since we don't store BMR explicitly in userTargets, let's re-calculate or just show TDEE logic
-            // Ideally BMR should be saved. For now, we estimate or use saved profile.
             let bmrDisplay = '--';
             if (userProfile.weight && userProfile.height && userProfile.age && userProfile.gender) {
                 const w = Number(userProfile.weight);
@@ -427,7 +413,6 @@
                 container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">無紀錄</div>';
                 return;
             }
-            // Sort by creation time if possible, or just reverse to show newest first
             const sortedLogs = [...currentLogs].reverse();
             
             sortedLogs.forEach(item => {
@@ -438,8 +423,9 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // Create Item JSON string for editing
-                const itemJson = JSON.stringify({id, name, cal, p, c, f}).replace(/"/g, '&quot;');
+                // Escape special characters for JSON string
+                const safeName = name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const itemJson = JSON.stringify({id, name: safeName, cal, p, c, f}).replace(/"/g, '&quot;');
 
                 const html = `
                     <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg group">
@@ -458,7 +444,7 @@
                             <button onclick="openFoodModal('edit', ${itemJson})" class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                             </button>
-                            <button onclick="deleteItem(event, '${id}', '${name}')" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                            <button onclick="deleteItem(event, '${id}', '${safeName}')" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                             ` : ''}
@@ -468,35 +454,22 @@
             });
         }
 
-        // ========================
-        // Actions: Delete, Add, Edit
-        // ========================
-
-        // Delete Logic
         function deleteItem(event, id, name) {
             if (event) { event.stopPropagation(); event.preventDefault(); }
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
             
-            // Optimistic UI Update
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
             renderDashboard(); 
             renderLogs();
             
-            // Call Backend
-            // We use API_DELETE if available, or fallback to Dashboard with action parameter
-            // Based on requirements: "Use existing Webhook URL... distinguish by action"
-            // We will use the main API_DASHBOARD for this to be compliant with the requirement of action parameters
-            // But we keep API_DELETE as a fallback if the user hasn't updated the backend for unified endpoint yet.
-            // For safety, I'll stick to API_DELETE for deletion as it works, but I'll add the action param.
-            
-            fetch(API_DELETE, {
+            // 統一使用 Dashboard API 進行刪除，帶上 action=delete
+            fetch(API_DASHBOARD, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUserId, id: id, action: 'delete' })
             }).catch(e => console.error(e));
         }
 
-        // Modal Control
         function openFoodModal(mode, item = null) {
             const m = document.getElementById('food-modal');
             const c = m.querySelector('.modal-content');
@@ -531,7 +504,6 @@
             setTimeout(() => m.classList.add('hidden'), 300);
         }
 
-        // Submit (Add/Edit)
         async function submitFood() {
             const id = document.getElementById('food-id').value;
             const name = document.getElementById('food-name').value;
@@ -548,15 +520,14 @@
             const action = (currentEditingMode === 'edit') ? 'edit' : 'add_manual';
             
             try {
-                // Call API
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: currentUserId,
                         action: action,
-                        id: id, // Only needed for edit
-                        date: selectedDateStr, // Ensure we add/edit to the selected date
+                        id: id,
+                        date: selectedDateStr, // 重要：告訴後端要新增到哪一天
                         food_name: name,
                         calories: cal,
                         protein: pro,
@@ -565,8 +536,8 @@
                     })
                 });
                 
-                // Refresh data
-                await fetchData('update');
+                // 稍微延遲一下再更新，確保後端寫入完成
+                setTimeout(() => fetchData('update'), 1500);
                 
             } catch (e) {
                 console.error(e);
@@ -575,10 +546,6 @@
                 showLoading(false);
             }
         }
-
-        // ========================
-        // Profile Settings Logic
-        // ========================
 
         function populateProfileForm(profile) {
             if(profile.gender) document.getElementById('input-gender').value = profile.gender;
@@ -615,7 +582,7 @@
             
             toggleSettings(false);
             renderDashboard();
-            updateStatsCard(); // Update stats card immediately
+            updateStatsCard();
             
             try {
                 await fetch(API_DASHBOARD, {
@@ -623,7 +590,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: currentUserId,
-                        action: 'update_profile', // Explicit action
+                        action: 'update_profile',
                         gender, age, height, weight, activity_level: activity,
                         goal: document.getElementById('input-goal').options[document.getElementById('input-goal').selectedIndex].text,
                         target_weight: targetWeight,
@@ -644,7 +611,7 @@
             const c = document.getElementById('log-content');
             const a = document.getElementById('log-arrow');
             c.classList.toggle('hidden'); c.classList.toggle('block'); 
-            a.style.transform = c.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+            a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
         }
         function toggleSettings(show) {
             const m = document.getElementById('settings-modal');
