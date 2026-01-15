@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v17.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v17.1</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -173,7 +173,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v17.0]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v17.1]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
 
@@ -458,7 +458,17 @@
         }
 
         // ========================
-        // [Feature 1] 一般戰報分享 (Gamified)
+        // Helper: Data Sanitizer (數據消毒)
+        // ========================
+        function safeNum(val) { const n = Number(val); return isNaN(n) ? 0 : n; }
+        function safePct(val, total) { 
+            if(!total || total <= 0) return "0%";
+            const pct = Math.round((val / total) * 100);
+            return Math.min(100, Math.max(0, pct)) + "%"; 
+        }
+
+        // ========================
+        // [Feature 1] 一般戰報分享 (v17.1 Safe)
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -468,22 +478,22 @@
                 let userName = '健康戰士';
                 try { 
                     const profile = await liff.getProfile(); 
-                    if(profile.displayName) {
-                        userName = profile.displayName.substring(0, 10).replace(/["'\\]/g, "");
-                    }
-                } catch(e) { console.log('Profile Error', e); }
+                    if(profile.displayName) userName = profile.displayName.replace(/["'\\]/g, "").substring(0, 12);
+                } catch(e) {}
 
+                // 安全計算總量
                 let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 currentLogs.forEach(item => {
-                    totals.cal += Number(item.calories || 0);
-                    totals.pro += Number(item.protein || 0);
-                    totals.carb += Number(item.carbs || 0);
-                    totals.fat += Number(item.fat || 0);
+                    totals.cal += safeNum(item.calories);
+                    totals.pro += safeNum(item.protein);
+                    totals.carb += safeNum(item.carbs);
+                    totals.fat += safeNum(item.fat);
                 });
 
-                const safeTargetCal = userTargets.cal || 2000;
-                const safeTargetPro = userTargets.pro || 100;
-                const safeTargetCarb = userTargets.carb || 200;
+                // 確保分母不為 0，避免 Infinity
+                const safeTargetCal = Math.max(1, safeNum(userTargets.cal) || 2000);
+                const safeTargetPro = Math.max(1, safeNum(userTargets.pro) || 100);
+                const safeTargetCarb = Math.max(1, safeNum(userTargets.carb) || 200);
 
                 let score = 0;
                 const calRatio = totals.cal / safeTargetCal;
@@ -497,8 +507,7 @@
                 else score += ((totals.pro / safeTargetPro) / 0.9) * 30;
                 score += 20; 
                 
-                score = Math.round(Math.min(100, score));
-                if (isNaN(score)) score = 0;
+                score = Math.round(Math.min(100, Math.max(0, score)));
 
                 let rank = 'C';
                 let rankColor = '#FF6B6B'; 
@@ -507,9 +516,6 @@
                 if (score >= 90) { rank = 'S'; rankColor = '#Eab308'; rankText = '完美執行'; } 
                 else if (score >= 80) { rank = 'A'; rankColor = '#1DB446'; rankText = '表現優異'; } 
                 else if (score >= 60) { rank = 'B'; rankColor = '#4B90E2'; rankText = '還不錯'; } 
-
-                const calPct = Math.min(100, Math.round((totals.cal / safeTargetCal) * 100)) + "%";
-                const proPct = Math.min(100, Math.round((totals.pro / safeTargetPro) * 100)) + "%";
 
                 const flexMessage = {
                     type: "flex",
@@ -546,7 +552,7 @@
                                         { "type": "text", "text": `${Math.round(totals.cal)} / ${safeTargetCal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "3px", "contents": [
-                                        { "type": "box", "layout": "vertical", "width": calPct, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "3px" }
+                                        { "type": "box", "layout": "vertical", "width": safePct(totals.cal, safeTargetCal), "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "3px" }
                                     ]}
                                 ]},
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
@@ -555,7 +561,7 @@
                                         { "type": "text", "text": `${Math.round(totals.pro)} / ${safeTargetPro}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "3px", "contents": [
-                                        { "type": "box", "layout": "vertical", "width": proPct, "backgroundColor": "#3B82F6", "height": "6px", "cornerRadius": "3px" }
+                                        { "type": "box", "layout": "vertical", "width": safePct(totals.pro, safeTargetPro), "backgroundColor": "#3B82F6", "height": "6px", "cornerRadius": "3px" }
                                     ]}
                                 ]}
                             ]
@@ -579,52 +585,49 @@
                     }
                 };
 
-                const result = await liff.shareTargetPicker([flexMessage]);
-                if (result) console.log("分享成功");
+                await liff.shareTargetPicker([flexMessage]);
 
             } catch (error) {
-                console.error('分享失敗詳細錯誤:', error);
-                alert('發送失敗：' + (error.message || error));
+                console.error('Error:', error);
+                alert('發送失敗: JSON格式錯誤 (請確保數值正常)');
             }
         }
 
         // ========================
-        // [Feature 2] 專業教練報告 (B2B Professional Report)
+        // [Feature 2] 專業教練報告 (v17.1 Safe)
         // ========================
         async function shareCoachReport() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
             if (!liff.isLoggedIn()) { liff.login(); return; }
 
             try {
-                // 1. 取得用戶名稱
                 let userName = '學員';
                 try { 
                     const profile = await liff.getProfile(); 
-                    if(profile.displayName) userName = profile.displayName.replace(/["'\\]/g, ""); 
+                    if(profile.displayName) userName = profile.displayName.replace(/["'\\]/g, "").substring(0, 12); 
                 } catch(e) {}
 
-                // 2. 計算總數與準備食物清單
                 let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 let foodListText = "";
                 currentLogs.forEach((item, index) => {
-                    const cal = Number(item.calories || 0);
+                    const cal = safeNum(item.calories);
                     totals.cal += cal;
-                    totals.pro += Number(item.protein || 0);
-                    totals.carb += Number(item.carbs || 0);
-                    totals.fat += Number(item.fat || 0);
+                    totals.pro += safeNum(item.protein);
+                    totals.carb += safeNum(item.carbs);
+                    totals.fat += safeNum(item.fat);
                     
                     if (index < 15) {
-                        foodListText += `• ${item.food_name || '未命名'} (${Math.round(cal)})\n`;
+                        const fname = (item.food_name || '未命名').replace(/["'\\]/g, "");
+                        foodListText += `• ${fname} (${Math.round(cal)})\n`;
                     }
                 });
                 if (currentLogs.length > 15) foodListText += `...以及其他 ${currentLogs.length - 15} 項`;
                 if (foodListText === "") foodListText = "本日尚未攝取食物";
 
-                // 3. 準備目標與差額 (Variance)
-                const tCal = userTargets.cal || 2000;
-                const tPro = userTargets.pro || 150;
-                const tCarb = userTargets.carb || 200;
-                const tFat = userTargets.fat || 60;
+                const tCal = Math.max(1, safeNum(userTargets.cal) || 2000);
+                const tPro = safeNum(userTargets.pro) || 150;
+                const tCarb = safeNum(userTargets.carb) || 200;
+                const tFat = safeNum(userTargets.fat) || 60;
 
                 const diffCal = Math.round(totals.cal - tCal);
                 const diffPro = Math.round(totals.pro - tPro);
@@ -632,11 +635,8 @@
                 const diffFat = Math.round(totals.fat - tFat);
 
                 const formatDiff = (val) => (val > 0 ? `+${val}` : `${val}`);
-                
-                // 差異顏色：熱量赤字(負數)通常為綠色(達標)，盈餘(正數)為紅色
                 const calStatusColor = diffCal <= 0 ? "#1DB446" : "#FF6B6B"; 
 
-                // 4. 建構 Professional Flex Message
                 const flexMessage = {
                     type: "flex",
                     altText: `📋 [飲食日報] ${userName} - ${selectedDateStr}`,
@@ -666,38 +666,32 @@
                                     { "type": "text", "text": "差額", "size": "xs", "color": "#aaaaaa", "align": "end", "flex": 2 }
                                 ], "margin": "sm" },
                                 { "type": "separator", "margin": "sm" },
-
                                 // Row 1: 熱量
                                 { "type": "box", "layout": "horizontal", "contents": [
                                     { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#111111", "weight": "bold", "flex": 2 },
                                     { "type": "text", "text": `${Math.round(totals.cal)} / ${tCal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 4 },
                                     { "type": "text", "text": formatDiff(diffCal), "size": "sm", "color": calStatusColor, "align": "end", "weight": "bold", "flex": 2 }
                                 ], "margin": "md" },
-
                                 // Row 2: 蛋白質
                                 { "type": "box", "layout": "horizontal", "contents": [
                                     { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
                                     { "type": "text", "text": `${Math.round(totals.pro)} / ${tPro}g`, "size": "sm", "color": "#555555", "align": "end", "flex": 4 },
                                     { "type": "text", "text": formatDiff(diffPro), "size": "sm", "color": diffPro >= 0 ? "#1DB446" : "#FF6B6B", "align": "end", "flex": 2 }
                                 ], "margin": "sm" },
-
                                 // Row 3: 碳水
                                 { "type": "box", "layout": "horizontal", "contents": [
                                     { "type": "text", "text": "🍚 碳水", "size": "sm", "color": "#555555", "flex": 2 },
                                     { "type": "text", "text": `${Math.round(totals.carb)} / ${tCarb}g`, "size": "sm", "color": "#555555", "align": "end", "flex": 4 },
                                     { "type": "text", "text": formatDiff(diffCarb), "size": "sm", "color": "#555555", "align": "end", "flex": 2 }
                                 ], "margin": "sm" },
-
                                 // Row 4: 脂肪
                                 { "type": "box", "layout": "horizontal", "contents": [
                                     { "type": "text", "text": "🥑 脂肪", "size": "sm", "color": "#555555", "flex": 2 },
                                     { "type": "text", "text": `${Math.round(totals.fat)} / ${tFat}g`, "size": "sm", "color": "#555555", "align": "end", "flex": 4 },
                                     { "type": "text", "text": formatDiff(diffFat), "size": "sm", "color": "#555555", "align": "end", "flex": 2 }
                                 ], "margin": "sm" },
-
                                 { "type": "separator", "margin": "lg" },
-
-                                // 食物清單摘要
+                                // 食物清單
                                 { "type": "text", "text": "攝取內容摘要", "size": "xs", "color": "#aaaaaa", "margin": "lg" },
                                 { "type": "text", "text": foodListText, "size": "xxs", "color": "#333333", "wrap": true, "margin": "sm", "lineSpacing": "2px" }
                             ]
