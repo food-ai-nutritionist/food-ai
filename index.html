@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-green-500 px-1 rounded ml-1">v16.4 Final</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v16.5</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -114,7 +114,7 @@
             </div>
             
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v16.4]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v16.5]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -229,8 +229,11 @@
         function renderDashboard() {
             let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
             currentLogs.forEach(i => {
-                t.cal += Number(i.calories||i.cal||0); t.pro += Number(i.protein||i.pro||0);
-                t.carb += Number(i.carbs||i.carb||0); t.fat += Number(i.fat||0);
+                // v16.5 修復：強制轉型為數字，並防止 NaN
+                t.cal += Number(i.calories||i.cal||0) || 0; 
+                t.pro += Number(i.protein||i.pro||0) || 0;
+                t.carb += Number(i.carbs||i.carb||0) || 0; 
+                t.fat += Number(i.fat||0) || 0;
             });
             updateStat('cal', t.cal, userTargets.cal); updateStat('pro', t.pro, userTargets.pro);
             updateStat('carb', t.carb, userTargets.carb); updateStat('fat', t.fat, userTargets.fat);
@@ -254,7 +257,7 @@
         }
 
         // ========================
-        // [v16.4] 最終完美版分享函式 (卡片回歸 + 安全防護)
+        // [v16.5] 終極防呆版：徹底解決 NaN 導致分享失敗問題
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -265,14 +268,16 @@
                 let uName = '健康戰士';
                 try { const p = await liff.getProfile(); if(p.displayName) uName = p.displayName.substring(0,10).replace(/["'\\]/g,""); } catch(e){}
 
-                // 2. 統計數據
+                // 2. 統計數據 (強制防呆)
                 let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 currentLogs.forEach(i => {
-                    t.cal += Number(i.calories||0); t.pro += Number(i.protein||0);
-                    t.carb += Number(i.carbs||0); t.fat += Number(i.fat||0);
+                    t.cal += Number(i.calories||0) || 0; 
+                    t.pro += Number(i.protein||0) || 0;
+                    t.carb += Number(i.carbs||0) || 0; 
+                    t.fat += Number(i.fat||0) || 0;
                 });
 
-                // 3. 安全算分 (防除以0)
+                // 3. 安全算分
                 const gCal = (userTargets.cal > 0) ? userTargets.cal : 2000;
                 const gPro = (userTargets.pro > 0) ? userTargets.pro : 100;
                 const gCarb = (userTargets.carb > 0) ? userTargets.carb : 200;
@@ -284,7 +289,7 @@
                 
                 const rPro = t.pro / gPro;
                 score += (rPro >= 0.9) ? 30 : (rPro/0.9)*30;
-                score += 20; // 基礎分
+                score += 20; 
                 score = Math.round(Math.min(100, score));
                 if(isNaN(score) || !isFinite(score)) score = 0;
 
@@ -294,11 +299,12 @@
                 else if(score>=80){ rank='A'; color='#1DB446'; text='表現優異'; }
                 else if(score>=60){ rank='B'; color='#4B90E2'; text='還不錯'; }
 
-                // 5. 進度條計算 (強制轉字串)
+                // 5. [關鍵修正] 進度條防呆函式
                 function safePct(v, total) {
                     if(!total || total<=0) return "0%";
-                    let p = Math.round((v/total)*100);
-                    return Math.min(100, Math.max(0, p)) + "%";
+                    let p = (v / total) * 100;
+                    if(isNaN(p) || !isFinite(p)) p = 0; // 絕對不允許 NaN
+                    return Math.min(100, Math.max(0, Math.round(p))) + "%";
                 }
                 const pCal = safePct(t.cal, gCal);
                 const pPro = safePct(t.pro, gPro);
@@ -363,7 +369,10 @@
                 };
 
                 const res = await liff.shareTargetPicker([msg]);
-                if(res) console.log("Sent");
+                if(res) {
+                    // 這裡加了 alert，讓您知道真的成功了
+                    alert('✅ 戰報傳送成功！'); 
+                }
 
             } catch (e) {
                 console.error(e); alert('發送失敗: ' + e.message);
