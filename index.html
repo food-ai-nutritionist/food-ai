@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v16.7</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v17.2</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -114,7 +114,7 @@
             </div>
             
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v16.7]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v17.2]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -176,6 +176,9 @@
     <script>
         const LIFF_ID = '2008846678-Niw8fld9';
         const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
+        
+        // 🔥 您的官方帳號 ID (已植入)
+        const LINE_BOT_ID = '@398jjbps'; 
 
         let currentUserId = ''; let currentLogs = [];
         let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
@@ -256,7 +259,7 @@
         }
 
         // ========================
-        // [v16.7] 最終潔淨版：只發送漂亮卡片，移除文字訊息
+        // [v17.2] 完整導流版：RPG + CTA -> Bot
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -276,6 +279,8 @@
 
                 const gCal = (userTargets.cal > 0) ? userTargets.cal : 2000;
                 const gPro = (userTargets.pro > 0) ? userTargets.pro : 100;
+                const gCarb = (userTargets.carb > 0) ? userTargets.carb : 200;
+                const gFat = (userTargets.fat > 0) ? userTargets.fat : 60;
 
                 let score = 0;
                 const rCal = t.cal / gCal;
@@ -286,6 +291,15 @@
                 score += 20; 
                 score = Math.round(Math.min(100, score));
                 if(isNaN(score) || !isFinite(score)) score = 0;
+
+                // RPG 稱號
+                let rpgTitle = "🌱 健康初心者"; let titleColor = "#555555";
+                if (score >= 90) { rpgTitle = "👑 傳說中的飲食大師"; titleColor = "#EAB308"; } 
+                else if (t.pro > gPro * 1.2) { rpgTitle = "⚔️ 肌肉狂戰士"; titleColor = "#3B82F6"; } 
+                else if (t.carb > gCarb * 1.2) { rpgTitle = "🪄 澱粉魔法師"; titleColor = "#22C55E"; } 
+                else if (t.fat > gFat * 1.2) { rpgTitle = "🧈 酮體煉金術士"; titleColor = "#F59E0B"; } 
+                else if (t.cal < gCal * 0.7) { rpgTitle = "🧘 佛系修煉者"; titleColor = "#8B5CF6"; } 
+                else if (score >= 80) { rpgTitle = "🌟 均衡模範生"; titleColor = "#10B981"; }
 
                 let rank='C', color='#FF6B6B', text='繼續加油';
                 if(score>=90){ rank='S'; color='#EAB308'; text='完美執行'; }
@@ -301,11 +315,10 @@
                 const pCal = safePct(t.cal, gCal);
                 const pPro = safePct(t.pro, gPro);
 
-                // 只有卡片，沒有純文字
                 const messages = [
                     {
                         type: "flex",
-                        altText: `📅 ${selectedDateStr} 飲食戰報`,
+                        altText: `📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
                         contents: {
                             "type": "bubble",
                             "size": "mega",
@@ -328,6 +341,7 @@
                                 "type": "box", "layout": "vertical",
                                 "contents": [
                                     { "type": "text", "text": `👤 ${uName}`, "weight": "bold", "size": "md" },
+                                    { "type": "text", "text": rpgTitle, "size": "lg", "weight": "bold", "color": titleColor, "margin": "xs" },
                                     { "type": "separator", "margin": "lg" },
                                     { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                         { "type": "box", "layout": "horizontal", "contents": [
@@ -352,7 +366,8 @@
                             "footer": {
                                 "type": "box", "layout": "vertical",
                                 "contents": [
-                                    { "type": "button", "style": "primary", "action": { "type": "uri", "label": "查看詳細儀表板", "uri": `https://liff.line.me/${LIFF_ID}` } }
+                                    // [Update] 使用您的 Bot ID 進行導流
+                                    { "type": "button", "style": "primary", "color": "#000000", "action": { "type": "uri", "label": "我也要測測看", "uri": `https://line.me/R/ti/p/${LINE_BOT_ID}` } }
                                 ],
                                 "paddingAll": "20px"
                             }
