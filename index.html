@@ -1,24 +1,473 @@
-// [V16.1 Fix] 修復版分享函式
-        async function shareAchievement() {
-            if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
-            // 確保已登入
-            if (!liff.isLoggedIn()) { 
-                liff.login(); 
-                return; 
-            }
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 營養師 - 健康儀表板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #000;
+            width: 24px; height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal { transition: opacity 0.3s ease-in-out; }
+        .modal-content { transition: transform 0.3s ease-in-out; }
+        .date-item.active { background-color: #000; color: #fff; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .date-item { transition: all 0.2s ease; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen overflow-hidden flex flex-col items-center">
+
+    <div class="w-full max-w-md bg-gray-50 h-full shadow-2xl flex flex-col relative overflow-y-auto no-scrollbar">
+        
+        <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v16.1</span></span>
+            </div>
+            <div class="flex gap-3">
+                <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                </div>
+            </div>
+        </div>
+
+        <div id="date-nav-container" class="bg-white border-b border-gray-100 py-3 px-4 sticky top-[60px] z-10 overflow-x-auto no-scrollbar flex gap-3 shrink-0">
+        </div>
+
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 z-50 flex items-center justify-center backdrop-blur-sm">
+            <div class="flex flex-col items-center">
+                <div class="loader mb-3 border-t-orange-500"></div>
+                <div class="text-sm text-gray-600 font-bold tracking-wide animate-pulse">處理中...</div>
+            </div>
+        </div>
+
+        <div class="p-4 space-y-4 pb-20 overflow-y-auto">
+
+            <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 relative overflow-hidden">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2">
+                        👤 個人狀態
+                    </h3>
+                    <button onclick="toggleSettings(true)" class="text-xs flex items-center gap-1 text-gray-400 hover:text-gray-600 bg-gray-50 px-2 py-1 rounded-lg transition-colors">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        設定
+                    </button>
+                </div>
+                <div class="grid grid-cols-3 gap-2 text-center divide-x divide-gray-100">
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">TDEE</div>
+                        <div class="font-bold text-xl text-gray-800" id="disp-tdee">--</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">BMR</div>
+                        <div class="font-bold text-xl text-gray-800" id="disp-bmr">--</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">體重</div>
+                        <div class="font-bold text-xl text-gray-800" id="disp-weight">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm p-5 border border-gray-100">
+                <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
+                    📊 <span id="display-date-title">今日</span>攝取進度
+                </h3>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-1 relative z-10">
+                            <span class="text-xs text-gray-500 font-medium">🔥 熱量</span>
+                            <span id="percent-cal" class="text-xs text-orange-500 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1 relative z-10">
+                            <span id="val-cal" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-cal">--</span></span>
+                        </div>
+                        <div class="w-full bg-orange-200/50 rounded-full h-1.5 mt-2">
+                            <div id="bar-cal" class="bg-orange-500 h-1.5 rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-100 relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-1 relative z-10">
+                            <span class="text-xs text-gray-500 font-medium">🥚 蛋白質</span>
+                            <span id="percent-pro" class="text-xs text-blue-500 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1 relative z-10">
+                            <span id="val-pro" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-pro">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-blue-200/50 rounded-full h-1.5 mt-2">
+                            <div id="bar-pro" class="bg-blue-500 h-1.5 rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100 relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-1 relative z-10">
+                            <span class="text-xs text-gray-500 font-medium">🍚 碳水</span>
+                            <span id="percent-carb" class="text-xs text-green-500 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1 relative z-10">
+                            <span id="val-carb" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-carb">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-green-200/50 rounded-full h-1.5 mt-2">
+                            <div id="bar-carb" class="bg-green-500 h-1.5 rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 p-3 rounded-xl border border-yellow-100 relative overflow-hidden">
+                        <div class="flex justify-between items-start mb-1 relative z-10">
+                            <span class="text-xs text-gray-500 font-medium">🥑 脂肪</span>
+                            <span id="percent-fat" class="text-xs text-yellow-500 font-bold">0%</span>
+                        </div>
+                        <div class="flex items-baseline gap-1 relative z-10">
+                            <span id="val-fat" class="text-xl font-bold text-gray-800">0</span>
+                            <span class="text-xs text-gray-400">/ <span id="goal-fat">--</span>g</span>
+                        </div>
+                        <div class="w-full bg-yellow-200/50 rounded-full h-1.5 mt-2">
+                            <div id="bar-fat" class="bg-yellow-500 h-1.5 rounded-full transition-all duration-700 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="shareAchievement()" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:shadow-xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                    生成今日戰報
+                </button>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="p-5 flex justify-between items-center border-b border-gray-100 bg-gray-50">
+                    <h3 class="font-bold text-gray-600 text-sm tracking-widest uppercase flex items-center gap-2">
+                        📅 攝取明細
+                    </h3>
+                    <button onclick="openFoodModal('add')" class="text-xs bg-black text-white px-3 py-1.5 rounded-lg font-bold hover:bg-gray-800 active:scale-95 transition-all flex items-center gap-1 shadow-sm">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        新增
+                    </button>
+                </div>
+                
+                <div onclick="toggleLog()" class="px-5 py-2 flex justify-center cursor-pointer hover:bg-gray-50">
+                    <svg id="log-arrow" class="w-5 h-5 text-gray-300 transform transition-transform duration-300 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </div>
+
+                <div id="log-content" class="px-5 pb-5 block space-y-3">
+                    <div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                        載入中...
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
+                <p class="font-bold mb-1">🛠️ Debug Info [v16.1]</p>
+                <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="settings-modal" class="hidden fixed inset-0 z-40">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="toggleSettings(false)"></div>
+        <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">⚙️ 設定身體數值</h3>
+                <div onclick="toggleSettings(false)" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 cursor-pointer">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </div>
+            </div>
+            
+            <div class="space-y-4 max-h-[70vh] overflow-y-auto no-scrollbar pb-10">
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="block"><span class="text-sm font-bold">性別</span><select id="input-gender" class="mt-1 block w-full rounded-xl border p-3"><option value="male">男性</option><option value="female">女性</option></select></label>
+                    <label class="block"><span class="text-sm font-bold">年齡</span><input type="number" id="input-age" class="mt-1 block w-full rounded-xl border p-3" value="25"></label>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="block"><span class="text-sm font-bold">身高 (cm)</span><input type="number" id="input-height" class="mt-1 block w-full rounded-xl border p-3" value="175"></label>
+                    <label class="block"><span class="text-sm font-bold">體重 (kg)</span><input type="number" id="input-weight" class="mt-1 block w-full rounded-xl border p-3" value="70"></label>
+                </div>
+                <div class="p-4 bg-green-50 rounded-xl border border-green-100">
+                    <label class="block"><span class="text-sm font-bold text-green-800">🎯 目標體重 (kg)</span><input type="number" id="input-target-weight" class="mt-1 block w-full rounded-xl border border-green-200 p-3" placeholder="例如: 65"></label>
+                </div>
+                <label class="block"><span class="text-sm font-bold">體脂率 % (選填)</span><input type="number" id="input-bodyfat" class="mt-1 block w-full rounded-xl border p-3" placeholder="例如: 20"></label>
+                <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3">
+                    <option value="1.2">幾乎不運動 (辦公室族)</option>
+                    <option value="1.375">輕度 (每週運動 1-3 天)</option>
+                    <option value="1.55">中度 (每週運動 3-5 天)</option>
+                    <option value="1.725">高度 (每週運動 6-7 天)</option>
+                </select></label>
+                <label class="block"><span class="text-sm font-bold">目標</span><select id="input-goal" class="mt-1 block w-full rounded-xl border p-3"><option value="0.85">減脂</option><option value="1.0" selected>維持</option><option value="1.10">增肌</option></select></label>
+                <button type="button" onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="food-modal" class="hidden fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeFoodModal()"></div>
+        <div class="absolute bottom-0 w-full max-w-md bg-white rounded-t-3xl p-6 shadow-2xl modal-content transform translate-y-full transition-transform duration-300 left-1/2 -translate-x-1/2">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="food-modal-title" class="text-xl font-bold text-gray-800">🍽️ 新增紀錄</h3>
+                <div onclick="closeFoodModal()" class="p-2 bg-gray-100 rounded-full hover:bg-gray-200 cursor-pointer">
+                    <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <input type="hidden" id="food-id">
+                <label class="block"><span class="text-sm font-bold">食物名稱</span><input type="text" id="food-name" class="mt-1 block w-full rounded-xl border p-3" placeholder="例如: 雞胸肉"></label>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="block"><span class="text-sm font-bold text-orange-600">🔥 熱量 (kcal)</span><input type="number" id="food-cal" class="mt-1 block w-full rounded-xl border p-3 bg-orange-50"></label>
+                    <label class="block"><span class="text-sm font-bold text-blue-600">🥚 蛋白質 (g)</span><input type="number" id="food-pro" class="mt-1 block w-full rounded-xl border p-3 bg-blue-50"></label>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="block"><span class="text-sm font-bold text-green-600">🍚 碳水 (g)</span><input type="number" id="food-carb" class="mt-1 block w-full rounded-xl border p-3 bg-green-50"></label>
+                    <label class="block"><span class="text-sm font-bold text-yellow-600">🥑 脂肪 (g)</span><input type="number" id="food-fat" class="mt-1 block w-full rounded-xl border p-3 bg-yellow-50"></label>
+                </div>
+
+                <button type="button" onclick="submitFood()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">儲存紀錄</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LIFF_ID = '2008846678-Niw8fld9';
+        const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
+
+        let currentUserId = ''; 
+        let currentLogs = [];
+        let userTargets = { cal: 2000, pro: 150, carb: 200, fat: 60 }; 
+        let userProfile = {};
+        let currentEditingMode = 'add'; 
+        
+        let currentDate = new Date();
+        let selectedDateStr = formatDate(currentDate);
+
+        window.onerror = function(msg, url, line) { console.error('JS Error:', msg); };
+
+        window.onload = async function() {
+            renderDateNav();
+            try {
+                const savedTargets = localStorage.getItem('userTargets');
+                if (savedTargets) {
+                    const parsed = JSON.parse(savedTargets);
+                    if(parsed.cal > 100) userTargets = parsed;
+                }
+                const savedProfile = localStorage.getItem('userProfile');
+                if (savedProfile) {
+                    userProfile = JSON.parse(savedProfile);
+                    populateProfileForm(userProfile);
+                    updateStatsCard();
+                }
+            } catch(e) {}
+            
+            renderDashboard();
 
             try {
-                // 1. 安全取得用戶名稱 (防止名字有特殊符號導致 JSON 壞掉)
+                await liff.init({ liffId: LIFF_ID });
+                if (liff.isLoggedIn()) {
+                    const profile = await liff.getProfile();
+                    currentUserId = profile.userId;
+                    document.getElementById('debug-userid').innerText = currentUserId;
+                    fetchData('init');
+                } else {
+                    liff.login();
+                }
+            } catch (err) { console.error(err); }
+        };
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function renderDateNav() {
+            const container = document.getElementById('date-nav-container');
+            container.innerHTML = '';
+            for (let i = -3; i <= 3; i++) {
+                const d = new Date();
+                d.setDate(d.getDate() + i);
+                const dateStr = formatDate(d);
+                const isSelected = dateStr === selectedDateStr;
+                const dayNum = d.getDate();
+                const weekDays = ['週日','週一','週二','週三','週四','週五','週六'];
+                const weekDay = weekDays[d.getDay()];
+                
+                const div = document.createElement('div');
+                div.className = `date-item flex flex-col items-center justify-center min-w-[50px] h-[60px] rounded-xl cursor-pointer ${isSelected ? 'active' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`;
+                div.onclick = () => switchDate(d);
+                div.innerHTML = `
+                    <span class="text-[10px] font-bold">${weekDay}</span>
+                    <span class="text-xl font-bold leading-tight">${dayNum}</span>
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function switchDate(date) {
+            currentDate = date;
+            selectedDateStr = formatDate(date);
+            renderDateNav();
+            document.getElementById('display-date-title').innerText = isToday(date) ? '今日' : `${date.getMonth()+1}/${date.getDate()}`;
+            fetchData('date_change');
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.getDate() === today.getDate() && date.getMonth() === today.getMonth();
+        }
+
+        async function fetchData(source) {
+            showLoading(true);
+            try {
+                const url = new URL(API_DASHBOARD);
+                url.searchParams.append('userId', currentUserId);
+                url.searchParams.append('user_id', currentUserId);
+                url.searchParams.append('date', selectedDateStr);
+
+                const response = await fetch(url, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+                const data = await response.json();
+
+                if (data.logs) {
+                    currentLogs = data.logs;
+                    if(data.targets && data.targets.cal > 100) {
+                        userTargets = { ...userTargets, ...data.targets };
+                    }
+                } else {
+                    currentLogs = [];
+                }
+                
+                renderDashboard();
+                renderLogs();
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('log-content').innerHTML = '<div class="text-center text-red-400 text-sm py-4">連線錯誤</div>';
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderDashboard() {
+            let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
+            if (currentLogs.length > 0) {
+                currentLogs.forEach(item => {
+                    totals.cal += Number(item.calories || item.cal || item['熱量'] || 0);
+                    totals.pro += Number(item.protein || item.pro || item['蛋白質'] || 0);
+                    totals.carb += Number(item.carbs || item.carb || item['碳水'] || 0);
+                    totals.fat += Number(item.fat || item['脂肪'] || 0);
+                });
+            }
+            updateStat('cal', totals.cal, userTargets.cal);
+            updateStat('pro', totals.pro, userTargets.pro);
+            updateStat('carb', totals.carb, userTargets.carb);
+            updateStat('fat', totals.fat, userTargets.fat);
+            
+            updateStatsCard();
+        }
+
+        function updateStat(type, current, target) {
+            const elVal = document.getElementById(`val-${type}`);
+            const elGoal = document.getElementById(`goal-${type}`);
+            const elPercent = document.getElementById(`percent-${type}`);
+            const elBar = document.getElementById(`bar-${type}`);
+            const safeTarget = target > 0 ? target : 2000;
+            const percent = Math.min(100, Math.round((current / safeTarget) * 100));
+
+            if(elVal) elVal.innerText = Math.round(current);
+            if(elGoal) elGoal.innerText = Math.round(target);
+            if(elPercent) elPercent.innerText = `${percent}%`;
+            if(elBar) elBar.style.width = `${percent}%`;
+        }
+        
+        function updateStatsCard() {
+            document.getElementById('disp-tdee').innerText = Math.round(userTargets.cal || 0);
+            
+            let bmrDisplay = '--';
+            if (userProfile.weight && userProfile.height && userProfile.age && userProfile.gender) {
+                const w = Number(userProfile.weight);
+                const h = Number(userProfile.height);
+                const a = Number(userProfile.age);
+                const bmr = (userProfile.gender === 'male') ? (10*w)+(6.25*h)-(5*a)+5 : (10*w)+(6.25*h)-(5*a)-161;
+                bmrDisplay = Math.round(bmr);
+            }
+            document.getElementById('disp-bmr').innerText = bmrDisplay;
+            document.getElementById('disp-weight').innerText = userProfile.weight || '--';
+        }
+
+        function renderLogs() {
+            const container = document.getElementById('log-content');
+            container.innerHTML = ''; 
+            if (currentLogs.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">無紀錄</div>';
+                return;
+            }
+            const sortedLogs = [...currentLogs].reverse();
+            
+            sortedLogs.forEach(item => {
+                const name = item.food_name || item.name || '未命名食物';
+                const cal = Math.round(item.calories || 0);
+                const p = Math.round(item.protein || 0);
+                const c = Math.round(item.carbs || 0);
+                const f = Math.round(item.fat || 0);
+                const id = item.id || item._id || item.log_id || item.row_number;
+
+                const safeName = name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const itemJson = JSON.stringify({id, name: safeName, cal, p, c, f}).replace(/"/g, '&quot;');
+
+                const html = `
+                    <div class="flex justify-between items-center py-4 border-b border-gray-100 px-2 last:border-0 hover:bg-gray-50 transition-colors rounded-lg group">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-gray-100 p-2.5 rounded-xl text-xl">🍽️</div>
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">${name}</div>
+                                <div class="text-xs text-gray-500 mt-1 flex gap-2">
+                                    <span class="text-orange-500 font-bold">${cal} kcal</span>
+                                    <span>C:${c} P:${p} F:${f}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-80">
+                            ${id ? `
+                            <button onclick="openFoodModal('edit', ${itemJson})" class="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                            </button>
+                            <button onclick="deleteItem(event, '${id}', '${safeName}')" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                            ` : ''}
+                        </div>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        // ========================
+        // [V16.1] 修復版分享函式 (確保在 Script 標籤內)
+        // ========================
+        async function shareAchievement() {
+            if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+
+            try {
                 let userName = '健康戰士';
                 try { 
                     const profile = await liff.getProfile(); 
-                    // 只取前 10 個字，並移除可能的引號
                     if(profile.displayName) {
                         userName = profile.displayName.substring(0, 10).replace(/["'\\]/g, "");
                     }
                 } catch(e) { console.log('Profile Error', e); }
 
-                // 2. 計算數值 (確保是數字)
                 let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 currentLogs.forEach(item => {
                     totals.cal += Number(item.calories || 0);
@@ -27,13 +476,11 @@
                     totals.fat += Number(item.fat || 0);
                 });
 
-                // 3. 簡單評分 (防止除以 0)
                 const safeTargetCal = userTargets.cal || 2000;
                 const safeTargetPro = userTargets.pro || 100;
                 const safeTargetCarb = userTargets.carb || 200;
 
                 let score = 0;
-                // 熱量 (50分)
                 const calRatio = totals.cal / safeTargetCal;
                 if (calRatio >= 0.9 && calRatio <= 1.1) score += 50;
                 else {
@@ -41,30 +488,25 @@
                     if (diff > 0) score += Math.max(0, 50 - (diff * 100));
                     else score += 50;
                 }
-                // 蛋白質 (30分)
                 if ((totals.pro / safeTargetPro) >= 0.9) score += 30;
                 else score += ((totals.pro / safeTargetPro) / 0.9) * 30;
-                // 其他 (20分)
-                score += 20; // 簡化邏輯，鼓勵為主
+                score += 20; 
                 
                 score = Math.round(Math.min(100, score));
-                if (isNaN(score)) score = 0; // 終極防護
+                if (isNaN(score)) score = 0;
 
-                // 4. 等級與顏色
                 let rank = 'C';
-                let rankColor = '#FF6B6B'; // Red
+                let rankColor = '#FF6B6B'; 
                 let rankText = '繼續加油';
                 
-                if (score >= 90) { rank = 'S'; rankColor = '#Eab308'; rankText = '完美執行'; } // Gold (用深黃色避免太亮)
-                else if (score >= 80) { rank = 'A'; rankColor = '#1DB446'; rankText = '表現優異'; } // Green
-                else if (score >= 60) { rank = 'B'; rankColor = '#4B90E2'; rankText = '還不錯'; } // Blue
+                if (score >= 90) { rank = 'S'; rankColor = '#Eab308'; rankText = '完美執行'; } 
+                else if (score >= 80) { rank = 'A'; rankColor = '#1DB446'; rankText = '表現優異'; } 
+                else if (score >= 60) { rank = 'B'; rankColor = '#4B90E2'; rankText = '還不錯'; } 
 
-                // 5. 計算百分比 (用於進度條) - 確保是字串且有 %
                 const calPct = Math.min(100, Math.round((totals.cal / safeTargetCal) * 100)) + "%";
                 const proPct = Math.min(100, Math.round((totals.pro / safeTargetPro) * 100)) + "%";
                 const carbPct = Math.min(100, Math.round((totals.carb / safeTargetCarb) * 100)) + "%";
 
-                // 6. 建構 Flex Message (簡化結構以確保成功)
                 const flexMessage = {
                     type: "flex",
                     altText: `📅 ${selectedDateStr} 飲食戰報`,
@@ -94,8 +536,6 @@
                             "contents": [
                                 { "type": "text", "text": `👤 ${userName}`, "weight": "bold", "size": "md" },
                                 { "type": "separator", "margin": "lg" },
-                                
-                                // 熱量條
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
                                         { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
@@ -105,8 +545,6 @@
                                         { "type": "box", "layout": "vertical", "width": calPct, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "3px" }
                                     ]}
                                 ]},
-
-                                // 蛋白質條
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
                                         { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
@@ -137,17 +575,156 @@
                     }
                 };
 
-                // 7. 發送
                 const result = await liff.shareTargetPicker([flexMessage]);
-                if (result) {
-                    console.log("分享成功");
-                } else {
-                    console.log("使用者取消分享");
-                }
+                if (result) console.log("分享成功");
 
             } catch (error) {
                 console.error('分享失敗詳細錯誤:', error);
-                // 顯示具體錯誤，幫助除錯
                 alert('發送失敗：' + (error.message || error));
             }
         }
+
+        // ========================
+        // CRUD Functions
+        // ========================
+        function deleteItem(event, id, name) {
+            if (event) { event.stopPropagation(); event.preventDefault(); }
+            if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+            currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
+            renderDashboard(); renderLogs();
+            fetch(API_DASHBOARD, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUserId, id: id, action: 'delete' })
+            }).catch(e => console.error(e));
+        }
+
+        function openFoodModal(mode, item = null) {
+            const m = document.getElementById('food-modal');
+            const c = m.querySelector('.modal-content');
+            currentEditingMode = mode;
+            document.getElementById('food-modal-title').innerText = (mode === 'edit') ? '✏️ 編輯紀錄' : '🍽️ 新增紀錄';
+            if (mode === 'edit' && item) {
+                document.getElementById('food-id').value = item.id;
+                document.getElementById('food-name').value = item.name;
+                document.getElementById('food-cal').value = item.cal;
+                document.getElementById('food-pro').value = item.p;
+                document.getElementById('food-carb').value = item.c;
+                document.getElementById('food-fat').value = item.f;
+            } else {
+                document.getElementById('food-id').value = '';
+                document.getElementById('food-name').value = '';
+                document.getElementById('food-cal').value = '';
+                document.getElementById('food-pro').value = '';
+                document.getElementById('food-carb').value = '';
+                document.getElementById('food-fat').value = '';
+            }
+            m.classList.remove('hidden');
+            setTimeout(() => c.classList.remove('translate-y-full'), 10);
+        }
+
+        function closeFoodModal() {
+            const m = document.getElementById('food-modal');
+            const c = m.querySelector('.modal-content');
+            c.classList.add('translate-y-full');
+            setTimeout(() => m.classList.add('hidden'), 300);
+        }
+
+        async function submitFood() {
+            const id = document.getElementById('food-id').value;
+            const name = document.getElementById('food-name').value;
+            const cal = Number(document.getElementById('food-cal').value);
+            const pro = Number(document.getElementById('food-pro').value);
+            const carb = Number(document.getElementById('food-carb').value);
+            const fat = Number(document.getElementById('food-fat').value);
+            if (!name) { alert('請輸入食物名稱'); return; }
+            showLoading(true);
+            closeFoodModal();
+            const action = (currentEditingMode === 'edit') ? 'edit' : 'add_manual';
+            try {
+                await fetch(API_DASHBOARD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        action: action,
+                        id: id,
+                        date: selectedDateStr,
+                        food_name: name,
+                        calories: cal,
+                        protein: pro,
+                        carbs: carb,
+                        fat: fat
+                    })
+                });
+                setTimeout(() => fetchData('update'), 1500);
+            } catch (e) { console.error(e); alert('儲存失敗'); } finally { showLoading(false); }
+        }
+
+        function populateProfileForm(profile) {
+            if(profile.gender) document.getElementById('input-gender').value = profile.gender;
+            if(profile.age) document.getElementById('input-age').value = profile.age;
+            if(profile.height) document.getElementById('input-height').value = profile.height;
+            if(profile.weight) document.getElementById('input-weight').value = profile.weight;
+            if(profile.activity) document.getElementById('input-activity').value = profile.activity;
+        }
+
+        async function saveProfile() {
+            showLoading(true);
+            const gender = document.getElementById('input-gender').value;
+            const age = Number(document.getElementById('input-age').value);
+            const height = Number(document.getElementById('input-height').value);
+            const weight = Number(document.getElementById('input-weight').value);
+            const targetWeight = Number(document.getElementById('input-target-weight').value);
+            const activity = Number(document.getElementById('input-activity').value);
+            const goal = Number(document.getElementById('input-goal').value);
+            const bodyFat = Number(document.getElementById('input-bodyfat').value);
+            let bmr = (gender === 'male') ? (10*weight)+(6.25*height)-(5*age)+5 : (10*weight)+(6.25*height)-(5*age)-161;
+            let tdee = Math.round(bmr * activity * goal);
+            userTargets = { cal: tdee, pro: Math.round((tdee * 0.25) / 4), carb: Math.round((tdee * 0.50) / 4), fat: Math.round((tdee * 0.25) / 9) };
+            userProfile = { gender, age, height, weight, activity, targetWeight, bodyFat };
+            localStorage.setItem('userTargets', JSON.stringify(userTargets));
+            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+            toggleSettings(false); renderDashboard(); updateStatsCard();
+            try {
+                await fetch(API_DASHBOARD, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUserId,
+                        action: 'update_profile',
+                        gender, age, height, weight, activity_level: activity,
+                        goal: document.getElementById('input-goal').options[document.getElementById('input-goal').selectedIndex].text,
+                        target_weight: targetWeight,
+                        body_fat: bodyFat,
+                        tdee_goal: tdee,
+                        target_protein: userTargets.pro,
+                        target_carbs: userTargets.carb,
+                        target_fat: userTargets.fat
+                    })
+                });
+                alert('已更新！');
+            } catch(e) { alert('儲存失敗'); } finally { showLoading(false); }
+        }
+
+        function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
+        function toggleLog() { 
+            const c = document.getElementById('log-content');
+            const a = document.getElementById('log-arrow');
+            c.classList.toggle('hidden'); c.classList.toggle('block'); 
+            a.style.transform = c.classList.contains('hidden') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+        function toggleSettings(show) {
+            const m = document.getElementById('settings-modal');
+            const c = m.querySelector('.modal-content');
+            if(show) { 
+                m.classList.remove('hidden'); 
+                setTimeout(()=>c.classList.remove('translate-y-full'),10); 
+                if(userProfile.targetWeight) document.getElementById('input-target-weight').value = userProfile.targetWeight; 
+                if(userProfile.bodyFat) document.getElementById('input-bodyfat').value = userProfile.bodyFat;
+            }
+            else { c.classList.add('translate-y-full'); setTimeout(()=>m.classList.add('hidden'),300); }
+        }
+    </script>
+</body>
+</html>
