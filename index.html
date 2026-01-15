@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v15.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v16.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -82,7 +82,7 @@
                 <h3 class="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2">
                     📊 <span id="display-date-title">今日</span>攝取進度
                 </h3>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-2 gap-3 mb-4">
                     <div class="bg-orange-50 p-3 rounded-xl border border-orange-100 relative overflow-hidden">
                         <div class="flex justify-between items-start mb-1 relative z-10">
                             <span class="text-xs text-gray-500 font-medium">🔥 熱量</span>
@@ -136,6 +136,11 @@
                         </div>
                     </div>
                 </div>
+
+                <button onclick="shareAchievement()" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-transform hover:shadow-xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+                    生成今日戰報
+                </button>
             </div>
 
             <div class="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
@@ -163,7 +168,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v15.0]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v16.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
 
@@ -235,7 +240,6 @@
 
     <script>
         const LIFF_ID = '2008846678-Niw8fld9';
-        // 請確保這個 URL 指向您的「Dashboard」Webhook
         const API_DASHBOARD = 'https://evann8n.app.n8n.cloud/webhook/fitness-dashboard';
 
         let currentUserId = ''; 
@@ -290,7 +294,6 @@
         function renderDateNav() {
             const container = document.getElementById('date-nav-container');
             container.innerHTML = '';
-            
             for (let i = -3; i <= 3; i++) {
                 const d = new Date();
                 d.setDate(d.getDate() + i);
@@ -344,10 +347,6 @@
                     currentLogs = [];
                 }
                 
-                if (data.profile) {
-                   // Optional: update local userProfile if backend returns it
-                }
-
                 renderDashboard();
                 renderLogs();
 
@@ -423,7 +422,6 @@
                 const f = Math.round(item.fat || 0);
                 const id = item.id || item._id || item.log_id || item.row_number;
 
-                // Escape special characters for JSON string
                 const safeName = name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
                 const itemJson = JSON.stringify({id, name: safeName, cal, p, c, f}).replace(/"/g, '&quot;');
 
@@ -454,15 +452,175 @@
             });
         }
 
+        // ========================
+        // [New] 分享戰報功能
+        // ========================
+        async function shareAchievement() {
+            if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
+            if (!liff.isLoggedIn()) { liff.login(); return; }
+
+            // 1. 計算總攝取
+            let totals = { cal: 0, pro: 0, carb: 0, fat: 0 };
+            currentLogs.forEach(item => {
+                totals.cal += Number(item.calories || 0);
+                totals.pro += Number(item.protein || 0);
+                totals.carb += Number(item.carbs || 0);
+                totals.fat += Number(item.fat || 0);
+            });
+
+            // 2. 評分邏輯
+            let score = 0;
+            // A. 熱量 (50分) - 目標 ±10% 內滿分
+            const calRatio = totals.cal / userTargets.cal;
+            if (calRatio >= 0.9 && calRatio <= 1.1) {
+                score += 50;
+            } else {
+                // 每偏差 1% 扣 1 分
+                const diff = Math.abs(1 - calRatio) - 0.1; // 超出 10% 的部分
+                if (diff > 0) score += Math.max(0, 50 - (diff * 100));
+                else score += 50; // 雖然沒進區間但很接近
+            }
+
+            // B. 蛋白質 (30分) - 達標 90% 以上滿分
+            const proRatio = totals.pro / userTargets.pro;
+            if (proRatio >= 0.9) score += 30;
+            else score += (proRatio / 0.9) * 30;
+
+            // C. 碳水與脂肪 (20分) - 不超標太多即得分
+            // 簡化：只要不超過 110% 都算分，超過依比例扣
+            const carbScore = (totals.carb <= userTargets.carb * 1.1) ? 10 : Math.max(0, 10 - ((totals.carb/userTargets.carb - 1.1) * 20));
+            const fatScore = (totals.fat <= userTargets.fat * 1.1) ? 10 : Math.max(0, 10 - ((totals.fat/userTargets.fat - 1.1) * 20));
+            score += (carbScore + fatScore);
+
+            score = Math.round(Math.min(100, score));
+
+            // 3. 等級判定
+            let rank = 'C';
+            let rankColor = '#FF6B6B'; // Red
+            let rankText = '繼續加油';
+            
+            if (score >= 90) { rank = 'S'; rankColor = '#FFD700'; rankText = '完美執行'; } // Gold
+            else if (score >= 80) { rank = 'A'; rankColor = '#1DB446'; rankText = '表現優異'; } // Green
+            else if (score >= 60) { rank = 'B'; rankColor = '#4B90E2'; rankText = '還不錯'; } // Blue
+
+            // 4. 準備進度條寬度
+            const calPct = Math.min(100, Math.round((totals.cal / userTargets.cal) * 100));
+            const proPct = Math.min(100, Math.round((totals.pro / userTargets.pro) * 100));
+            const carbPct = Math.min(100, Math.round((totals.carb / userTargets.carb) * 100));
+
+            // 5. 取得用戶名
+            let userName = '健康戰士';
+            try { const profile = await liff.getProfile(); userName = profile.displayName; } catch(e){}
+
+            // 6. 建構 Flex Message
+            const flexMessage = {
+                type: "flex",
+                altText: `📅 ${selectedDateStr} 飲食戰報：${rank}級`,
+                contents: {
+                    "type": "bubble",
+                    "size": "mega",
+                    "header": {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": [
+                            { "type": "text", "text": "📅 飲食打卡日報", "weight": "bold", "color": "#aaaaaa", "size": "xs" },
+                            { "type": "text", "text": selectedDateStr, "weight": "bold", "color": "#aaaaaa", "size": "xs", "align": "end" }
+                        ]
+                    },
+                    "hero": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            { "type": "text", "text": `${score}`, "size": "5xl", "weight": "bold", "color": rankColor, "align": "center" },
+                            { "type": "text", "text": `${rank}級 - ${rankText}`, "size": "xl", "weight": "bold", "color": "#555555", "align": "center", "margin": "md" }
+                        ],
+                        "paddingBottom": "20px"
+                    },
+                    "body": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            { "type": "text", "text": `👤 ${userName}`, "weight": "bold", "size": "md", "margin": "md" },
+                            { "type": "separator", "margin": "lg" },
+                            // 熱量 Row
+                            {
+                                "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm",
+                                "contents": [
+                                    { "type": "box", "layout": "horizontal", "contents": [
+                                        { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": `${Math.round(totals.cal)}/${userTargets.cal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
+                                    ]},
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "box", "layout": "vertical", "width": `${calPct}%`, "backgroundColor": "#F97316", "height": "6px" }
+                                    ], "backgroundColor": "#F3F4F6", "cornerRadius": "3px", "height": "6px" }
+                                ]
+                            },
+                            // 蛋白質 Row
+                            {
+                                "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm",
+                                "contents": [
+                                    { "type": "box", "layout": "horizontal", "contents": [
+                                        { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": `${Math.round(totals.pro)}/${userTargets.pro}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
+                                    ]},
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "box", "layout": "vertical", "width": `${proPct}%`, "backgroundColor": "#3B82F6", "height": "6px" }
+                                    ], "backgroundColor": "#F3F4F6", "cornerRadius": "3px", "height": "6px" }
+                                ]
+                            },
+                            // 碳水 Row
+                            {
+                                "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm",
+                                "contents": [
+                                    { "type": "box", "layout": "horizontal", "contents": [
+                                        { "type": "text", "text": "🍚 碳水", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": `${Math.round(totals.carb)}/${userTargets.carb}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
+                                    ]},
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "box", "layout": "vertical", "width": `${carbPct}%`, "backgroundColor": "#22C55E", "height": "6px" }
+                                    ], "backgroundColor": "#F3F4F6", "cornerRadius": "3px", "height": "6px" }
+                                ]
+                            }
+                        ]
+                    },
+                    "footer": {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "color": "#000000",
+                                "action": {
+                                    "type": "uri",
+                                    "label": "查看詳細儀表板",
+                                    "uri": `https://liff.line.me/${LIFF_ID}`
+                                }
+                            }
+                        ],
+                        "paddingAll": "20px"
+                    }
+                }
+            };
+
+            // 7. 呼叫分享
+            try {
+                await liff.shareTargetPicker([flexMessage]);
+                // 不需 alert 成功，因為 LINE 原生介面會顯示
+            } catch (e) {
+                console.error(e);
+                alert('分享失敗，請確認 LIFF ShareTargetPicker 權限已開啟');
+            }
+        }
+
+        // ========================
+        // (以下為原有的 CRUD 邏輯)
+        // ========================
         function deleteItem(event, id, name) {
             if (event) { event.stopPropagation(); event.preventDefault(); }
             if (!confirm(`確定要刪除「${name}」嗎？`)) return;
-            
             currentLogs = currentLogs.filter(i => (i.id || i._id || i.log_id || i.row_number) !== id);
-            renderDashboard(); 
-            renderLogs();
-            
-            // 統一使用 Dashboard API 進行刪除，帶上 action=delete
+            renderDashboard(); renderLogs();
             fetch(API_DASHBOARD, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -474,9 +632,7 @@
             const m = document.getElementById('food-modal');
             const c = m.querySelector('.modal-content');
             currentEditingMode = mode;
-            
             document.getElementById('food-modal-title').innerText = (mode === 'edit') ? '✏️ 編輯紀錄' : '🍽️ 新增紀錄';
-            
             if (mode === 'edit' && item) {
                 document.getElementById('food-id').value = item.id;
                 document.getElementById('food-name').value = item.name;
@@ -492,7 +648,6 @@
                 document.getElementById('food-carb').value = '';
                 document.getElementById('food-fat').value = '';
             }
-
             m.classList.remove('hidden');
             setTimeout(() => c.classList.remove('translate-y-full'), 10);
         }
@@ -511,14 +666,10 @@
             const pro = Number(document.getElementById('food-pro').value);
             const carb = Number(document.getElementById('food-carb').value);
             const fat = Number(document.getElementById('food-fat').value);
-
             if (!name) { alert('請輸入食物名稱'); return; }
-
             showLoading(true);
             closeFoodModal();
-
             const action = (currentEditingMode === 'edit') ? 'edit' : 'add_manual';
-            
             try {
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
@@ -527,7 +678,7 @@
                         userId: currentUserId,
                         action: action,
                         id: id,
-                        date: selectedDateStr, // 重要：告訴後端要新增到哪一天
+                        date: selectedDateStr,
                         food_name: name,
                         calories: cal,
                         protein: pro,
@@ -535,16 +686,8 @@
                         fat: fat
                     })
                 });
-                
-                // 稍微延遲一下再更新，確保後端寫入完成
                 setTimeout(() => fetchData('update'), 1500);
-                
-            } catch (e) {
-                console.error(e);
-                alert('儲存失敗，請檢查網路');
-            } finally {
-                showLoading(false);
-            }
+            } catch (e) { console.error(e); alert('儲存失敗'); } finally { showLoading(false); }
         }
 
         function populateProfileForm(profile) {
@@ -565,25 +708,13 @@
             const activity = Number(document.getElementById('input-activity').value);
             const goal = Number(document.getElementById('input-goal').value);
             const bodyFat = Number(document.getElementById('input-bodyfat').value);
-
             let bmr = (gender === 'male') ? (10*weight)+(6.25*height)-(5*age)+5 : (10*weight)+(6.25*height)-(5*age)-161;
             let tdee = Math.round(bmr * activity * goal);
-            
-            userTargets = {
-                cal: tdee,
-                pro: Math.round((tdee * 0.25) / 4),
-                carb: Math.round((tdee * 0.50) / 4),
-                fat: Math.round((tdee * 0.25) / 9)
-            };
-            
+            userTargets = { cal: tdee, pro: Math.round((tdee * 0.25) / 4), carb: Math.round((tdee * 0.50) / 4), fat: Math.round((tdee * 0.25) / 9) };
             userProfile = { gender, age, height, weight, activity, targetWeight, bodyFat };
             localStorage.setItem('userTargets', JSON.stringify(userTargets));
             localStorage.setItem('userProfile', JSON.stringify(userProfile));
-            
-            toggleSettings(false);
-            renderDashboard();
-            updateStatsCard();
-            
+            toggleSettings(false); renderDashboard(); updateStatsCard();
             try {
                 await fetch(API_DASHBOARD, {
                     method: 'POST',
@@ -602,8 +733,7 @@
                     })
                 });
                 alert('已更新！');
-            } catch(e) { alert('儲存失敗'); }
-            finally { showLoading(false); }
+            } catch(e) { alert('儲存失敗'); } finally { showLoading(false); }
         }
 
         function showLoading(show) { document.getElementById('loading-overlay').classList.toggle('hidden', !show); }
