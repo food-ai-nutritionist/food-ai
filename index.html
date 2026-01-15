@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-pink-500 px-1 rounded ml-1">v16.6</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-purple-600 px-1 rounded ml-1">v16.7</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -114,7 +114,7 @@
             </div>
             
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1">🛠️ Debug Info [v16.6]</p>
+                <p class="font-bold mb-1">🛠️ Debug Info [v16.7]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -256,7 +256,7 @@
         }
 
         // ========================
-        // [v16.6] 修復版：增加 contents:[] 屬性，符合 LINE 嚴格規範
+        // [v16.7] 最終潔淨版：只發送漂亮卡片，移除文字訊息
         // ========================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -301,9 +301,8 @@
                 const pCal = safePct(t.cal, gCal);
                 const pPro = safePct(t.pro, gPro);
 
-                // 建構雙重訊息 (文字+卡片)
+                // 只有卡片，沒有純文字
                 const messages = [
-                    { type: "text", text: `📅 ${selectedDateStr} 飲食戰報：${rank}級！\n分數：${score}分` },
                     {
                         type: "flex",
                         altText: `📅 ${selectedDateStr} 飲食戰報`,
@@ -330,7 +329,6 @@
                                 "contents": [
                                     { "type": "text", "text": `👤 ${uName}`, "weight": "bold", "size": "md" },
                                     { "type": "separator", "margin": "lg" },
-                                    // 熱量 (關鍵修復: 加入 contents:[])
                                     { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                         { "type": "box", "layout": "horizontal", "contents": [
                                             { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
@@ -340,7 +338,6 @@
                                             { "type": "box", "layout": "vertical", "width": pCal, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "md", "contents": [] }
                                         ]}
                                     ]},
-                                    // 蛋白質 (關鍵修復: 加入 contents:[])
                                     { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                         { "type": "box", "layout": "horizontal", "contents": [
                                             { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
