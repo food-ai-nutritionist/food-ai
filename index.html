@@ -25,7 +25,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v31.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-red-600 px-1 rounded ml-1">v32.0</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -34,8 +34,7 @@
             </div>
         </div>
 
-        <div id="date-nav-container" class="bg-white border-b border-gray-100 py-3 px-4 sticky top-[60px] z-10 overflow-x-auto no-scrollbar flex gap-3 shrink-0">
-        </div>
+        <div id="date-nav-container" class="bg-white border-b border-gray-100 py-3 px-4 sticky top-[60px] z-10 overflow-x-auto no-scrollbar flex gap-3 shrink-0"></div>
 
         <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 z-50 flex items-center justify-center backdrop-blur-sm">
             <div class="flex flex-col items-center">
@@ -50,8 +49,7 @@
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-gray-800 flex items-center gap-2"> 👤 個人狀態</h3>
                     <button onclick="toggleSettings(true)" class="text-xs flex items-center gap-1 text-gray-400 hover:text-gray-600 bg-gray-50 px-2 py-1 rounded-lg transition-colors">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                        設定
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> 設定
                     </button>
                 </div>
                 <div class="grid grid-cols-3 gap-2 text-center divide-x divide-gray-100">
@@ -113,7 +111,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1"> 🛠️ Debug Info [v31.0]</p>
+                <p class="font-bold mb-1"> 🛠️ Debug Info [v32.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -137,12 +135,7 @@
                 </div>
                 <div class="p-4 bg-green-50 rounded-xl border border-green-100"><label class="block"><span class="text-sm font-bold text-green-800"> 🎯 目標體重</span><input type="number" id="input-target-weight" class="mt-1 block w-full rounded-xl border border-green-200 p-3" placeholder="例如: 65"></label></div>
                 <label class="block"><span class="text-sm font-bold">體脂率 %</span><input type="number" id="input-bodyfat" class="mt-1 block w-full rounded-xl border p-3" placeholder="選填"></label>
-                <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3">
-                    <option value="1.2">幾乎不運動 (辦公室族)</option>
-                    <option value="1.375">輕度 (每週運動 1-3 天)</option>
-                    <option value="1.55">中度 (每週運動 3-5 天)</option>
-                    <option value="1.725">高度 (每週運動 6-7 天)</option>
-                </select></label>
+                <label class="block"><span class="text-sm font-bold">運動頻率</span><select id="input-activity" class="mt-1 block w-full rounded-xl border p-3"><option value="1.2">幾乎不運動</option><option value="1.375">輕度 (1-3天)</option><option value="1.55">中度 (3-5天)</option><option value="1.725">高度 (6-7天)</option></select></label>
                 <label class="block"><span class="text-sm font-bold">目標</span><select id="input-goal" class="mt-1 block w-full rounded-xl border p-3"><option value="0.85">減脂</option><option value="1.0" selected>維持</option><option value="1.10">增肌</option></select></label>
                 <button type="button" onclick="saveProfile()" class="w-full bg-black text-white font-bold py-4 rounded-xl mt-4 hover:scale-[1.02] transition-transform active:scale-95">計算並儲存</button>
             </div>
@@ -182,10 +175,7 @@
         let userProfile = {}; let currentEditingMode = 'add';
         let currentDate = new Date(); let selectedDateStr = formatDate(currentDate);
 
-        // 安全數字轉換
         function safeNum(val) { const n = Number(val); return (isNaN(n) || !isFinite(n)) ? 0 : n; }
-        
-        // 安全百分比 (0-100) - 回傳數字
         function safePct(val, total) { 
             if(!total || total <= 0) return 0;
             let p = (val / total) * 100;
@@ -264,9 +254,7 @@
             }
         }
 
-        // ==========================================
-        //  Feature 1: 戰報給朋友 (圖二經典版)
-        // ==========================================
+        // Feature 1: 戰報給朋友 (復刻圖二)
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
             if (!liff.isLoggedIn()) { liff.login(); return; }
@@ -278,8 +266,6 @@
                     t.cal += safeNum(i.calories||0); t.pro += safeNum(i.protein||0);
                     t.carb += safeNum(i.carbs||0); t.fat += safeNum(i.fat||0);
                 });
-                
-                // 變數補回，防止變數未定義錯誤
                 const gCal = Math.max(1, safeNum(userTargets.cal) || 2000);
                 const gPro = Math.max(1, safeNum(userTargets.pro) || 100);
                 const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
@@ -311,17 +297,16 @@
                 const pCal = safePct(t.cal, gCal);
                 const pPro = safePct(t.pro, gPro);
 
-                // 只顯示熱量和蛋白質進度條 (還原圖二)
                 const messages = [{
                     type: "flex",
-                    altText: ` 📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
+                    altText: `📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
                     contents: {
                         "type": "bubble",
                         "size": "giga", 
                         "header": {
                             "type": "box", "layout": "horizontal",
                             "contents": [
-                                { "type": "text", "text": " 📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
+                                { "type": "text", "text": "📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
                                 { "type": "text", "text": String(selectedDateStr), "color": "#aaaaaa", "size": "xs", "align": "end" }
                             ]
                         },
@@ -335,25 +320,23 @@
                         "body": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": ` 👤 ${uName}`, "weight": "bold", "size": "md" },
+                                { "type": "text", "text": `👤 ${uName}`, "weight": "bold", "size": "md" },
                                 { "type": "text", "text": rpgTitle, "size": "lg", "weight": "bold", "color": titleColor, "margin": "xs" },
                                 { "type": "separator", "margin": "lg" },
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": " 🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.cal)} / ${gCal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
-                                    // 確保空值時塞入 spacer，避免錯誤
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
                                         { "type": "box", "layout": "vertical", "width": `${pCal}%`, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "md", "contents": [{"type":"spacer"}] }
                                     ]}
                                 ]},
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": " 🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.pro)} / ${gPro}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
-                                    // 確保空值時塞入 spacer
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
                                         { "type": "box", "layout": "vertical", "width": `${pPro}%`, "backgroundColor": "#3B82F6", "height": "6px", "cornerRadius": "md", "contents": [{"type":"spacer"}] }
                                     ]}
@@ -373,9 +356,7 @@
             } catch (e) { console.error(e); alert('發送失敗: ' + e.message); }
         }
 
-        // ==========================================
-        //  Feature 2: 專業教練報告 (安全詳盡版 - 含 0% 防呆)
-        // ==========================================
+        // Feature 2: 專業教練報告 (安全詳盡版 - 含 0% 防呆)
         async function shareCoachReport() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
             if (!liff.isLoggedIn()) { liff.login(); return; }
@@ -398,7 +379,7 @@
                             type: "box", layout: "vertical", margin: "sm",
                             contents: [
                                 { type: "text", text: `• ${fname}`, size: "xs", color: "#333333", weight: "bold" },
-                                { type: "text", text: `   熱量:${Math.round(cal)} P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
+                                { type: "text", text: `   ${Math.round(cal)}kcal | P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
                             ]
                         });
                     }
@@ -417,11 +398,10 @@
                 const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
                 const gFat = Math.max(1, safeNum(userTargets.fat) || 60);
 
-                // Helper: 產生進度條 Row (關鍵修正：處理 0%)
                 const createProgressRow = (label, current, target, color) => {
                     const p = safePct(current, target);
                     const barContents = [];
-                    // 如果 > 0% 才畫顏色條，否則只畫 spacer
+                    // 0% 防呆邏輯：只有 >0 才會渲染有寬度的 Box
                     if (p > 0) {
                         barContents.push({ type: "box", layout: "vertical", width: `${p}%`, backgroundColor: color, height: "4px", cornerRadius: "2px", contents: [{"type":"spacer"}] });
                     } else {
