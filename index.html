@@ -11,7 +11,13 @@
         body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #000; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #000;
+            width: 24px; height: 24px;
+            animation: spin 1s linear infinite;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .modal { transition: opacity 0.3s ease-in-out; }
         .modal-content { transition: transform 0.3s ease-in-out; }
@@ -25,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v29.0 Fixed</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v30.0 Fixed</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -113,7 +119,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1"> 🛠️ Debug Info [v29.0]</p>
+                <p class="font-bold mb-1"> 🛠️ Debug Info [v30.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -182,6 +188,17 @@
         let userProfile = {}; let currentEditingMode = 'add';
         let currentDate = new Date(); let selectedDateStr = formatDate(currentDate);
 
+        // 安全數字轉換
+        function safeNum(val) { const n = Number(val); return (isNaN(n) || !isFinite(n)) ? 0 : n; }
+        
+        // 安全百分比 (0-100)
+        function safePct(val, total) { 
+            if(!total || total <= 0) return 0;
+            let p = (val / total) * 100;
+            if(isNaN(p) || !isFinite(p)) p = 0;
+            return Math.min(100, Math.max(0, Math.round(p))); 
+        }
+
         window.onerror = function(msg, url, line) { console.error('JS Error:', msg); };
 
         window.onload = async function() {
@@ -227,10 +244,10 @@
         function renderDashboard() {
             let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
             currentLogs.forEach(i => {
-                t.cal += Number(i.calories||i.cal||0) || 0;
-                t.pro += Number(i.protein||i.pro||0) || 0;
-                t.carb += Number(i.carbs||i.carb||0) || 0;
-                t.fat += Number(i.fat||0) || 0;
+                t.cal += safeNum(i.calories||i.cal);
+                t.pro += safeNum(i.protein||i.pro);
+                t.carb += safeNum(i.carbs||i.carb);
+                t.fat += safeNum(i.fat||i.fat);
             });
             updateStat('cal', t.cal, userTargets.cal); updateStat('pro', t.pro, userTargets.pro);
             updateStat('carb', t.carb, userTargets.carb); updateStat('fat', t.fat, userTargets.fat);
@@ -254,20 +271,7 @@
         }
 
         // ==========================================
-        //  數據安全小幫手 (核心防護：防止 NaN)
-        // ==========================================
-        function safeNum(val) { const n = Number(val); return (isNaN(n) || !isFinite(n)) ? 0 : n; }
-        
-        // 核心修正：計算百分比時防止 NaN/Infinity
-        function safePct(val, total) { 
-            if(!total || total <= 0) return 0;
-            let p = (val / total) * 100;
-            if(isNaN(p) || !isFinite(p)) p = 0;
-            return Math.min(100, Math.max(0, Math.round(p))); 
-        }
-
-        // ==========================================
-        //  Feature 1: 戰報給朋友 (100% 還原圖二樣式)
+        //  Feature 1: 戰報給朋友 (復刻經典圖二版)
         // ==========================================
         async function shareAchievement() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -275,14 +279,19 @@
             try {
                 let uName = '健康戰士';
                 try { const p = await liff.getProfile(); if(p.displayName) uName = p.displayName.substring(0,10).replace(/["'\\]/g,""); } catch(e){}
+                
                 let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 currentLogs.forEach(i => {
                     t.cal += safeNum(i.calories||0); t.pro += safeNum(i.protein||0);
                     t.carb += safeNum(i.carbs||0); t.fat += safeNum(i.fat||0);
                 });
+                
+                // 必須定義這4個變數，因為 RPG 邏輯需要它們
                 const gCal = Math.max(1, safeNum(userTargets.cal) || 2000);
                 const gPro = Math.max(1, safeNum(userTargets.pro) || 100);
-                
+                const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
+                const gFat = safeNum(userTargets.fat) || 60;
+
                 let score = 0;
                 const rCal = t.cal / gCal;
                 if(rCal >= 0.9 && rCal <= 1.1) score += 50;
@@ -293,6 +302,7 @@
                 score = Math.round(Math.min(100, score));
                 if(isNaN(score)) score = 0;
 
+                // RPG 稱號邏輯 (修復了找不到變數的 bug)
                 let rpgTitle = " 🌱 健康初心者"; let titleColor = "#555555";
                 if (score >= 90) { rpgTitle = " 👑 傳說中的飲食大師"; titleColor = "#EAB308"; }
                 else if (t.pro > gPro * 1.2) { rpgTitle = " ⚔️ 肌肉狂戰士"; titleColor = "#3B82F6"; }
@@ -311,44 +321,43 @@
 
                 const messages = [{
                     type: "flex",
-                    altText: `📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
+                    altText: ` 📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
                     contents: {
                         "type": "bubble",
-                        "size": "giga", // 安全修復：改為 giga
+                        "size": "giga", 
                         "header": {
                             "type": "box", "layout": "horizontal",
                             "contents": [
-                                { "type": "text", "text": "📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
+                                { "type": "text", "text": " 📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
                                 { "type": "text", "text": String(selectedDateStr), "color": "#aaaaaa", "size": "xs", "align": "end" }
                             ]
                         },
                         "hero": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": String(score), "size": "4xl", "weight": "bold", "color": color, "align": "center" }, // 安全修復：改為 4xl
+                                { "type": "text", "text": String(score), "size": "4xl", "weight": "bold", "color": color, "align": "center" },
                                 { "type": "text", "text": `${rank}級 - ${text}`, "size": "xl", "weight": "bold", "color": "#555555", "align": "center", "margin": "md" }
                             ], "paddingBottom": "20px"
                         },
                         "body": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": `👤 ${uName}`, "weight": "bold", "size": "md" },
+                                { "type": "text", "text": ` 👤 ${uName}`, "weight": "bold", "size": "md" },
                                 { "type": "text", "text": rpgTitle, "size": "lg", "weight": "bold", "color": titleColor, "margin": "xs" },
                                 { "type": "separator", "margin": "lg" },
-                                // 熱量條 (還原圖二)
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": " 🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.cal)} / ${gCal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
+                                    // ⚠️ 關鍵修復: 確保不為空
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
                                         { "type": "box", "layout": "vertical", "width": `${pCal}%`, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "md", "contents": [{"type":"spacer"}] }
                                     ]}
                                 ]},
-                                // 蛋白質條 (還原圖二)
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": " 🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.pro)} / ${gPro}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
@@ -371,7 +380,7 @@
         }
 
         // ==========================================
-        //  Feature 2: 專業教練報告 (安全修復版)
+        //  Feature 2: 專業教練報告 (安全詳盡版)
         // ==========================================
         async function shareCoachReport() {
             if (!liff.isInClient()) { alert('請在 LINE App 中使用'); return; }
@@ -380,7 +389,6 @@
                 let uName = '學員';
                 try { const p = await liff.getProfile(); if(p.displayName) uName = p.displayName.substring(0,10).replace(/["'\\]/g,""); } catch(e){}
                 
-                // 1. 計算總攝取
                 let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 let detailRows = [];
                 currentLogs.forEach((item, index) => {
@@ -396,14 +404,13 @@
                             type: "box", layout: "vertical", margin: "sm",
                             contents: [
                                 { type: "text", text: `• ${fname}`, size: "xs", color: "#333333", weight: "bold" },
-                                { type: "text", text: `   熱量:${Math.round(cal)} P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
+                                { type: "text", text: `   ${Math.round(cal)}kcal | P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
                             ]
                         });
                     }
                 });
                 if(currentLogs.length === 0) detailRows.push({ type: "text", text: "本日無紀錄", size: "xs", color: "#aaaaaa" });
                 
-                // 2. 準備目標數值
                 const w = safeNum(userProfile.weight) || 0;
                 const h = safeNum(userProfile.height) || 0;
                 const a = safeNum(userProfile.age) || 0;
@@ -416,10 +423,18 @@
                 const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
                 const gFat = Math.max(1, safeNum(userTargets.fat) || 60);
 
-                // Helper: 產生進度條 Row (安全版)
+                // Helper: 產生進度條 Row (安全版：0%不渲染Bar)
                 const createProgressRow = (label, current, target, color) => {
                     const p = safePct(current, target);
-                    if(p === 0) return null; // 0% 略過不渲染，避免空 box 錯誤
+                    const barContents = [];
+                    // 只有當 p > 0 時才加入顏色條，否則 spacer 會因為寬度 0 而報錯
+                    if (p > 0) {
+                        barContents.push({ type: "box", layout: "vertical", width: `${p}%`, backgroundColor: color, height: "4px", cornerRadius: "2px", contents: [{"type":"spacer"}] });
+                    } else {
+                        // 0% 時塞入一個透明的 spacer 佔位 (防止空 box 錯誤)
+                        barContents.push({ type: "spacer" });
+                    }
+
                     return {
                         type: "box", layout: "vertical", margin: "md", spacing: "xs",
                         contents: [
@@ -427,52 +442,17 @@
                                 { type: "text", text: label, size: "xs", color: "#555555", flex: 2 },
                                 { type: "text", text: `${Math.round(current)}/${Math.round(target)} (${p}%)`, size: "xs", color: "#111111", align: "end", flex: 4 }
                             ]},
-                            { type: "box", layout: "vertical", width: "100%", backgroundColor: "#F0F0F0", height: "4px", cornerRadius: "2px", contents: [
-                                { type: "box", layout: "vertical", width: `${p}%`, backgroundColor: color, height: "4px", cornerRadius: "2px", contents: [{"type":"spacer"}] }
-                            ]}
+                            { type: "box", layout: "vertical", width: "100%", backgroundColor: "#F0F0F0", height: "4px", cornerRadius: "2px", contents: barContents }
                         ]
                     };
                 };
-
-                const bodyContents = [
-                    // Block 1
-                    { "type": "text", "text": "基本數值", "weight": "bold", "size": "sm", "color": "#333333" },
-                    { "type": "box", "layout": "horizontal", "margin": "sm", "contents": [
-                        { "type": "box", "layout": "vertical", "contents": [
-                            { "type": "text", "text": "TDEE", "size": "xxs", "color": "#888888", "align": "center" },
-                            { "type": "text", "text": `${Math.round(gCal)}`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
-                        ]},
-                        { "type": "box", "layout": "vertical", "contents": [
-                            { "type": "text", "text": "BMR", "size": "xxs", "color": "#888888", "align": "center" },
-                            { "type": "text", "text": `${Math.round(bmr)}`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
-                        ]},
-                        { "type": "box", "layout": "vertical", "contents": [
-                            { "type": "text", "text": "體重", "size": "xxs", "color": "#888888", "align": "center" },
-                            { "type": "text", "text": `${w}kg`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
-                        ]}
-                    ]},
-                    { "type": "separator", "margin": "lg" },
-                    // Block 2
-                    { "type": "text", "text": "營養攝取進度", "weight": "bold", "size": "sm", "color": "#333333", "margin": "lg" }
-                ];
-
-                const bar1 = createProgressRow("🔥 熱量", t.cal, gCal, "#F97316"); if(bar1) bodyContents.push(bar1);
-                const bar2 = createProgressRow("🥚 蛋白質", t.pro, gPro, "#3B82F6"); if(bar2) bodyContents.push(bar2);
-                const bar3 = createProgressRow("🍚 碳水", t.carb, gCarb, "#22C55E"); if(bar3) bodyContents.push(bar3);
-                const bar4 = createProgressRow("🥑 脂肪", t.fat, gFat, "#EAB308"); if(bar4) bodyContents.push(bar4);
-
-                bodyContents.push({ "type": "separator", "margin": "lg" });
-                bodyContents.push({ "type": "text", "text": "攝取明細", "weight": "bold", "size": "sm", "color": "#333333", "margin": "lg" });
-                
-                // 加入明細 rows
-                detailRows.forEach(row => bodyContents.push(row));
 
                 const messages = [{
                     type: "flex",
                     altText: `📋 專業飲食週報 ${uName}`,
                     contents: {
                         "type": "bubble",
-                        "size": "giga", // 安全尺寸
+                        "size": "giga",
                         "header": {
                             "type": "box", "layout": "vertical",
                             "contents": [
@@ -487,7 +467,31 @@
                         },
                         "body": {
                             "type": "box", "layout": "vertical",
-                            "contents": bodyContents
+                            "contents": [
+                                { "type": "text", "text": "基本數值", "weight": "bold", "size": "sm", "color": "#333333" },
+                                { "type": "box", "layout": "horizontal", "margin": "sm", "contents": [
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "text", "text": "TDEE", "size": "xxs", "color": "#888888", "align": "center" },
+                                        { "type": "text", "text": `${Math.round(gCal)}`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
+                                    ]},
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "text", "text": "BMR", "size": "xxs", "color": "#888888", "align": "center" },
+                                        { "type": "text", "text": `${Math.round(bmr)}`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
+                                    ]},
+                                    { "type": "box", "layout": "vertical", "contents": [
+                                        { "type": "text", "text": "體重", "size": "xxs", "color": "#888888", "align": "center" },
+                                        { "type": "text", "text": `${w}kg`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
+                                    ]}
+                                ]},
+                                { "type": "separator", "margin": "lg" },
+                                { "type": "text", "text": "營養攝取進度", "weight": "bold", "size": "sm", "color": "#333333", "margin": "lg" },
+                                createProgressRow("🔥 熱量", t.cal, gCal, "#F97316"),
+                                createProgressRow("🥚 蛋白質", t.pro, gPro, "#3B82F6"),
+                                createProgressRow("🍚 碳水", t.carb, gCarb, "#22C55E"),
+                                createProgressRow("🥑 脂肪", t.fat, gFat, "#EAB308"),
+                                { "type": "separator", "margin": "lg" },
+                                { "type": "text", "text": "攝取明細", "weight": "bold", "size": "sm", "color": "#333333", "margin": "lg" }
+                            ].concat(detailRows) // 安全合併陣列
                         }
                     }
                 }];
