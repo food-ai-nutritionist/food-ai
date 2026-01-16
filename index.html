@@ -31,7 +31,7 @@
         
         <div class="bg-black text-white px-5 py-4 flex justify-between items-center sticky top-0 z-20 shadow-md shrink-0">
             <div class="flex items-center gap-2">
-                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-indigo-500 px-1 rounded ml-1">v26.0</span></span>
+                <span class="font-bold text-lg">AI 營養師 <span class="text-xs bg-green-500 px-1 rounded ml-1">v27.0 Safe</span></span>
             </div>
             <div class="flex gap-3">
                 <div onclick="fetchData('manual')" class="p-2 hover:bg-gray-800 rounded-full transition-colors cursor-pointer">
@@ -119,7 +119,7 @@
             </div>
 
             <div class="mt-8 p-4 bg-gray-200 rounded-xl text-xs font-mono text-gray-600 break-all hidden">
-                <p class="font-bold mb-1"> 🛠️ Debug Info [v26.0]</p>
+                <p class="font-bold mb-1"> 🛠️ Debug Info [v27.0]</p>
                 <p>User ID: <span id="debug-userid" class="text-blue-600">Detecting...</span></p>
             </div>
         </div>
@@ -260,9 +260,11 @@
         }
 
         // ==========================================
-        //  數據安全小幫手
+        //  數據安全小幫手 (核心修正：防止 NaN)
         // ==========================================
         function safeNum(val) { const n = Number(val); return (isNaN(n) || !isFinite(n)) ? 0 : n; }
+        
+        // 核心修正：計算百分比時防止 NaN/Infinity，並確保格式正確
         function safePct(val, total) { 
             if(!total || total <= 0) return "0%";
             let p = (val / total) * 100;
@@ -286,9 +288,7 @@
                 });
                 const gCal = Math.max(1, safeNum(userTargets.cal) || 2000);
                 const gPro = Math.max(1, safeNum(userTargets.pro) || 100);
-                const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
-                const gFat = safeNum(userTargets.fat) || 60;
-
+                
                 let score = 0;
                 const rCal = t.cal / gCal;
                 if(rCal >= 0.9 && rCal <= 1.1) score += 50;
@@ -298,14 +298,6 @@
                 score += 20;
                 score = Math.round(Math.min(100, score));
                 if(isNaN(score)) score = 0;
-
-                let rpgTitle = " 🌱 健康初心者"; let titleColor = "#555555";
-                if (score >= 90) { rpgTitle = " 👑 傳說中的飲食大師"; titleColor = "#EAB308"; }
-                else if (t.pro > gPro * 1.2) { rpgTitle = " ⚔️ 肌肉狂戰士"; titleColor = "#3B82F6"; }
-                else if (t.carb > gCarb * 1.2) { rpgTitle = " 🪄 澱粉魔法師"; titleColor = "#22C55E"; }
-                else if (t.fat > gFat * 1.2) { rpgTitle = " 🧈 酮體煉金術士"; titleColor = "#F59E0B"; }
-                else if (t.cal < gCal * 0.7) { rpgTitle = " 🧘 佛系修煉者"; titleColor = "#8B5CF6"; }
-                else if (score >= 80) { rpgTitle = " 🌟 均衡模範生"; titleColor = "#10B981"; }
 
                 let rank='C', color='#FF6B6B', text='繼續加油';
                 if(score>=90){ rank='S'; color='#EAB308'; text='完美執行'; }
@@ -317,14 +309,14 @@
 
                 const messages = [{
                     type: "flex",
-                    altText: ` 📅 ${selectedDateStr} 飲食戰報：${rpgTitle}`,
+                    altText: `📅 ${selectedDateStr} 飲食戰報`,
                     contents: {
                         "type": "bubble",
-                        "size": "mega", 
+                        "size": "giga", 
                         "header": {
                             "type": "box", "layout": "horizontal",
                             "contents": [
-                                { "type": "text", "text": " 📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
+                                { "type": "text", "text": "📅 飲食打卡日報", "color": "#aaaaaa", "size": "xs" },
                                 { "type": "text", "text": String(selectedDateStr), "color": "#aaaaaa", "size": "xs", "align": "end" }
                             ]
                         },
@@ -338,25 +330,23 @@
                         "body": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "text", "text": ` 👤 ${uName}`, "weight": "bold", "size": "md" },
-                                { "type": "text", "text": rpgTitle, "size": "lg", "weight": "bold", "color": titleColor, "margin": "xs" },
+                                { "type": "text", "text": `👤 ${uName}`, "weight": "bold", "size": "md" },
                                 { "type": "separator", "margin": "lg" },
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": " 🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": "🔥 熱量", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.cal)} / ${gCal}`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
-                                    // ⚠️ 關鍵修復：內層 Box 必須有 contents，否則 LINE 會拒收！這裡塞入一個 invisible spacer
+                                    // ⚠️ 修復: 塞入 spacer 防止空 box
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
                                         { "type": "box", "layout": "vertical", "width": pCal, "backgroundColor": "#F97316", "height": "6px", "cornerRadius": "md", "contents": [{"type":"spacer"}] }
                                     ]}
                                 ]},
                                 { "type": "box", "layout": "vertical", "margin": "lg", "spacing": "sm", "contents": [
                                     { "type": "box", "layout": "horizontal", "contents": [
-                                        { "type": "text", "text": " 🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
+                                        { "type": "text", "text": "🥚 蛋白質", "size": "sm", "color": "#555555", "flex": 2 },
                                         { "type": "text", "text": `${Math.round(t.pro)} / ${gPro}g`, "size": "sm", "color": "#111111", "align": "end", "flex": 3 }
                                     ]},
-                                    // ⚠️ 關鍵修復
                                     { "type": "box", "layout": "vertical", "width": "100%", "backgroundColor": "#F3F4F6", "height": "6px", "cornerRadius": "md", "contents": [
                                         { "type": "box", "layout": "vertical", "width": pPro, "backgroundColor": "#3B82F6", "height": "6px", "cornerRadius": "md", "contents": [{"type":"spacer"}] }
                                     ]}
@@ -366,7 +356,7 @@
                         "footer": {
                             "type": "box", "layout": "vertical",
                             "contents": [
-                                { "type": "button", "style": "primary", "color": "#000000", "action": { "type": "uri", "label": "我也要測測看", "uri": `https://line.me/R/ti/p/${LINE_BOT_ID}` } }
+                                { "type": "button", "style": "primary", "color": "#000000", "action": { "type": "uri", "label": "查看詳細儀表板", "uri": `https://liff.line.me/${LIFF_ID}` } }
                             ], "paddingAll": "20px"
                         }
                     }
@@ -386,51 +376,49 @@
                 let uName = '學員';
                 try { const p = await liff.getProfile(); if(p.displayName) uName = p.displayName.substring(0,10).replace(/["'\\]/g,""); } catch(e){}
                 
-                // 1. 計算
                 let t = { cal: 0, pro: 0, carb: 0, fat: 0 };
                 let detailRows = [];
+                
                 currentLogs.forEach((item, index) => {
                     const cal = safeNum(item.calories || item.cal);
                     const p = safeNum(item.protein || item.pro);
                     const c = safeNum(item.carbs || item.carb);
                     const f = safeNum(item.fat || item.fat);
                     t.cal += cal; t.pro += p; t.carb += c; t.fat += f;
-                    if (index < 15) { 
-                        const fname = (item.food_name || '餐點').substring(0, 15);
+                    
+                    if (index < 10) { // 安全筆數
+                        const fname = (item.food_name || '餐點').replace(/["'\\]/g,"").substring(0, 15);
                         detailRows.push({
                             type: "box", layout: "vertical", margin: "sm",
                             contents: [
                                 { type: "text", text: `• ${fname}`, size: "xs", color: "#333333", weight: "bold" },
-                                { type: "text", text: `   熱量:${Math.round(cal)} P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
+                                { type: "text", text: `   ${Math.round(cal)}kcal | P:${Math.round(p)} C:${Math.round(c)} F:${Math.round(f)}`, size: "xxs", color: "#888888" }
                             ]
                         });
                     }
                 });
                 if(currentLogs.length === 0) detailRows.push({ type: "text", text: "本日無紀錄", size: "xs", color: "#aaaaaa" });
                 
-                // 2. 目標 & 個人
+                // 數據
                 const w = safeNum(userProfile.weight) || 0;
-                const h = safeNum(userProfile.height) || 0;
-                const a = safeNum(userProfile.age) || 0;
-                let bmr = 0;
-                if(w && h && a) { bmr = (userProfile.gender==='male')?(10*w+6.25*h-5*a+5):(10*w+6.25*h-5*a-161); }
+                const bmrText = (w>0) ? String(Math.round((userProfile.gender==='male')?(10*w+6.25*170-5*25+5):(10*w+6.25*160-5*25-161))) : "--";
                 const gCal = Math.max(1, safeNum(userTargets.cal) || 2000);
                 const gPro = Math.max(1, safeNum(userTargets.pro) || 100);
                 const gCarb = Math.max(1, safeNum(userTargets.carb) || 200);
                 const gFat = Math.max(1, safeNum(userTargets.fat) || 60);
 
-                // Helper: 產生進度條 Row (⚠️ 關鍵修復：加入 spacer)
+                // Helper: 產生進度條 Row (加入 spacer)
                 const createProgressRow = (label, current, target, color) => {
-                    const pct = Math.min(100, Math.round((current/target)*100));
+                    const pctVal = safePct(current, target);
                     return {
                         type: "box", layout: "vertical", margin: "md", spacing: "xs",
                         contents: [
                             { type: "box", layout: "horizontal", contents: [
                                 { type: "text", text: label, size: "xs", color: "#555555", flex: 2 },
-                                { type: "text", text: `${Math.round(current)}/${Math.round(target)} (${pct}%)`, size: "xs", color: "#111111", align: "end", flex: 4 }
+                                { type: "text", text: `${Math.round(current)}/${Math.round(target)} (${pctVal})`, size: "xs", color: "#111111", align: "end", flex: 4 }
                             ]},
                             { type: "box", layout: "vertical", width: "100%", backgroundColor: "#F0F0F0", height: "4px", cornerRadius: "2px", contents: [
-                                { type: "box", layout: "vertical", width: `${pct}%`, backgroundColor: color, height: "4px", cornerRadius: "2px", contents: [{"type":"spacer"}] }
+                                { type: "box", layout: "vertical", width: pctVal, backgroundColor: color, height: "4px", cornerRadius: "2px", contents: [{"type":"spacer"}] }
                             ]}
                         ]
                     };
@@ -466,7 +454,7 @@
                                     ]},
                                     { "type": "box", "layout": "vertical", "contents": [
                                         { "type": "text", "text": "BMR", "size": "xxs", "color": "#888888", "align": "center" },
-                                        { "type": "text", "text": `${Math.round(bmr)}`, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
+                                        { "type": "text", "text": bmrText, "size": "sm", "color": "#333333", "align": "center", "weight": "bold" }
                                     ]},
                                     { "type": "box", "layout": "vertical", "contents": [
                                         { "type": "text", "text": "體重", "size": "xxs", "color": "#888888", "align": "center" },
